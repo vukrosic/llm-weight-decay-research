@@ -15,13 +15,14 @@ CONFIGS = [
 
 STEPS = 200
 
-def run_command(command):
-    print(f"Running: {command}")
+def run_command(command, cwd=None):
+    print(f"Running: {command} in {cwd if cwd else 'current dir'}")
     process = subprocess.Popen(
         command,
         shell=True,
         stdout=sys.stdout,
-        stderr=sys.stderr
+        stderr=sys.stderr,
+        cwd=cwd
     )
     process.wait()
     if process.returncode != 0:
@@ -31,11 +32,12 @@ def run_command(command):
 def analyze_results():
     print("Analyzing sweep results...")
     
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     # Find all metrics.json files in checkpoints/sweep_lr_*
-    metric_files = glob.glob("checkpoints/sweep_lr_*/metrics.json")
+    metric_files = glob.glob(os.path.join(project_root, "checkpoints", "sweep_lr_*", "metrics.json"))
     
     if not metric_files:
-        print("No sweep results found in checkpoints/")
+        print(f"No sweep results found in {os.path.join(project_root, 'checkpoints')}")
         return
 
     results = {}
@@ -89,8 +91,11 @@ def analyze_results():
 def main():
     print("Starting Quick Learning Rate Sweep...")
     
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
     print("Cleaning up previous sweep checkpoints...")
-    for sweep_dir in glob.glob("checkpoints/sweep_lr_*"):
+    # Clean checkpoints in project root
+    for sweep_dir in glob.glob(os.path.join(project_root, "checkpoints", "sweep_lr_*")):
         print(f"Removing {sweep_dir}")
         shutil.rmtree(sweep_dir)
 
@@ -114,6 +119,9 @@ def main():
         print(f"AdamW LR: {adamw_lr}")
         print(f"{'='*50}\n")
         
+        # Paths relative to project root (assuming script is in experiments/)
+        # We will run subprocess from project root
+        
         cmd = (
             f"python train_moe.py "
             f"--muon_lr {muon_lr} "
@@ -122,10 +130,13 @@ def main():
             f"--experiment_name {experiment_name}"
         )
         
-        run_command(cmd)
+        # Run from parent directory (project root)
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        run_command(cmd, cwd=project_root)
         
         # Cleanup large files
-        ckpt_dir = os.path.join("checkpoints", experiment_name)
+        # Checkpoints are in project_root/checkpoints because we ran from project root
+        ckpt_dir = os.path.join(project_root, "checkpoints", experiment_name)
         for fname in ["final_model.pt", "model.pt"]:
             p = os.path.join(ckpt_dir, fname)
             if os.path.exists(p):
