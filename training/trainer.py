@@ -87,7 +87,7 @@ def train_model(
     log_every: int = 100,
     track_manifold: bool = False,
     checkpoint_dir: Optional[str] = "checkpoints",
-    checkpoint_every: int = 500,
+    checkpoint_every: int = 5000,
     resume_from: Optional[str] = None,
 ) -> Any:
     """
@@ -637,7 +637,8 @@ def train_minimal_llm(
         log_every=getattr(config, 'log_every', 100),
         track_manifold=track_manifold,
         resume_from=os.path.join(checkpoint_dir, "latest_checkpoint.pt") if resume else None,
-        checkpoint_dir=checkpoint_dir
+        checkpoint_dir=checkpoint_dir,
+        checkpoint_every=getattr(config, 'save_every', 2000)
     )
     
     total_training_time = results['training_time']

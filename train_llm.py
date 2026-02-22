@@ -209,7 +209,7 @@ def main():
     parser.add_argument("--compile", type=str, help="Whether to compile the model (true/false)")
     parser.add_argument("--dataset_path", type=str, help="Path to preprocessed dataset directory")
     parser.add_argument("--eval_every", type=int, help="Override eval_every steps")
-    parser.add_argument("--save_every", type=int, help="Override save_every steps")
+    parser.add_argument("--save_every", type=int, default=5000, help="Override save_every steps")
     parser.add_argument("--batch_size", type=int, help="Override batch_size")
     parser.add_argument("--gradient_accumulation_steps", type=int, help="Override gradient_accumulation_steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging frequency in steps")
