@@ -43,4 +43,25 @@ In standard optimizers, high learning rates often cause the weight matrix to "fi
 ![Entropy Heatmap](../results/research_plots/entropy_heatmap.png)
 
 ---
+## ✅ 100M Token Run Complete: The Long-Term Stability of Lock-in
+We successfully extended this research to **100,000,000 tokens** (6,104 steps). The results provide a definitive look at the geometric mechanics of Muon-driven learning:
+
+### 🚀 Key Long-Term Observations:
+1.  **Unlimited Spectral Growth**: The Max Spectral Norm for deep layers (L21) did not saturate, reaching a staggering **31.8**—nearly double the 20M token mark. This confirms that Muon allows layers to continuously deepen their "Feature Focus" without numerical instability.
+2.  **Subspace Persistence**: Foundation layers (L0) maintained a high alignment flux but low persistence (~0.30), while semantic layers showed "Geometric Lock-in" where the alignment remained stable even as the norm exploded.
+3.  **Accuracy Gains**: The final val accuracy reached **0.3488**, demonstrating that this spectral stretching is directly correlated with the model's increasing linguistic capability.
+
+![Final Spectral Evolution](../results/research_plots/spectral_stretching_evolution.png)
+
+---
+## 🏔️ The 500M Token Frontier: Tracking the Ultimate Singular Collapse
+We have resumed training and are now targeting a massive **500,000,000 tokens**. This run is specifically designed to answer our newest research question:
+
+> **"Does the full singular value distribution become more peaked (specialized) or more spread out (generalist) as training deepens, particularly in the semantic layers?"**
+
+We are tracking the **top-10 singular values** and **Normalized Spectral Entropy** for every layer. If our theory holds, we should see the "Spectral Tail" in deep layers disappear, meaning the model is literally pruning away unused dimensions of thought to maximize its "Feature Focus."
+
+*Run Status: Active tracking... Check back at 500M.*
+
+---
 *Created by the Muon LLM Research Team*

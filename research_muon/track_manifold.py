@@ -54,6 +54,17 @@ def run_tracking_and_plot(tokens="2000000"):
 
 def plot_results(history, save_dir):
     os.makedirs(save_dir, exist_ok=True)
+    
+    # Handle nested manifold_history if present
+    if 'manifold_history' in history:
+        # Merge manifold_history keys into a local view of history for plotting
+        manifold_data = history['manifold_history']
+        # We want to keep 'steps' from the manifold_history if it exists there
+        plotting_history = {**manifold_data}
+        if 'steps' not in plotting_history and 'steps' in history:
+            plotting_history['steps'] = history['steps']
+        history = plotting_history
+
     sns.set_theme(style="whitegrid")
     
     # 1. Training Loss
