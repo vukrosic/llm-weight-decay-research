@@ -11,11 +11,13 @@ from torch.utils.data import DataLoader
 from torch.amp import autocast
 from tqdm import tqdm
 from typing import List, Optional, Callable, Dict, Any
+from collections import defaultdict
 from configs.llm_config import BlueberryConfig
 from models.llm import MinimalLLM
 from optimizers.muon import Muon
 from training.evaluation import evaluate_model
 from utils.helpers import set_seed, format_time
+from utils.spectral import compute_spectral_stats, compute_singular_values
 
 
 class EarlyStopping:
@@ -83,6 +85,7 @@ def train_model(
     output_dir: Optional[str] = None,
     extra_config: Optional[Dict[str, Any]] = None,
     log_every: int = 100,
+    track_manifold: bool = False,
 ) -> Any:
     """
     Generic training function that can be used by experiments.
@@ -122,6 +125,9 @@ def train_model(
         'elapsed_times': [],
         'learning_rates': [],
     }
+    
+    if track_manifold:
+        metrics_history['manifold_history'] = defaultdict(list)
 
     # Training loop
     model.train()
@@ -227,6 +233,36 @@ def train_model(
                 # Console print for visibility
                 if step % (log_every * 10) == 0 or stopped_early:
                     print(f" [Step {step}] Loss: {current_loss_val:.4f} | Acc: {accuracy:.3f} | LR: {current_lr:.6f}")
+
+                # Manifold Tracking
+                if track_manifold:
+                    with torch.no_grad():
+                        # Track all layers for heatmaps
+                        num_layers = len(model.transformer_blocks)
+                        for i, block in enumerate(model.transformer_blocks):
+                            # Access the merged qkvo_proj
+                            proj = block.attention.qkvo_proj
+                            q_size = block.attention.q_size
+                            kv_size = block.attention.kv_size
+                            
+                            w_q = proj[:q_size]
+                            w_v = proj[q_size + kv_size : q_size + 2 * kv_size]
+                            
+                            q_stats = compute_spectral_stats(w_q)
+                            v_stats = compute_spectral_stats(w_v)
+                            
+                            metrics_history['manifold_history'][f'spec_norm_Q_{i}'].append(q_stats['max'])
+                            metrics_history['manifold_history'][f'spec_norm_V_{i}'].append(v_stats['max'])
+                            
+                            # Track detailed stats for first and last layers
+                            if i == 0 or i == num_layers - 1:
+                                suffix = "0" if i == 0 else "last"
+                                metrics_history['manifold_history'][f'spec_gap_Q_{suffix}'].append(q_stats['gap'])
+                                metrics_history['manifold_history'][f'spec_vals_Q_{suffix}'].append(compute_singular_values(w_q, n=10))
+                        
+                        # Add loss and steps to manifold history for synchronization
+                        metrics_history['manifold_history']['loss'].append(current_loss_val)
+                        metrics_history['manifold_history']['steps'].append(step)
             
             pbar.update(batch_tokens)
             tokens_seen += batch_tokens
@@ -432,6 +468,7 @@ def train_minimal_llm(
     output_dir: Optional[str] = None,
     load_weights_path: Optional[str] = None,
     compare_baseline: bool = False,
+    track_manifold: bool = False,
 ):
     print(f"\n🚀 Training dense model")
     setup_start = time.time()
@@ -557,6 +594,7 @@ def train_minimal_llm(
         output_dir=None,
         extra_config=None,
         log_every=getattr(config, 'log_every', 100),
+        track_manifold=track_manifold,
     )
     
     total_training_time = results['training_time']

@@ -214,6 +214,7 @@ def main():
     parser.add_argument("--gradient_accumulation_steps", type=int, help="Override gradient_accumulation_steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging frequency in steps")
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
+    parser.add_argument("--track_manifold", type=str, default="false", help="Whether to track manifold spectral statistics (true/false)")
 
     args = parser.parse_args()
 
@@ -357,6 +358,7 @@ def main():
         val_loader, 
         output_dir=output_dir, 
         load_weights_path=args.load_checkpoint,
+        track_manifold=(args.track_manifold.lower() == "true")
     )
 
 

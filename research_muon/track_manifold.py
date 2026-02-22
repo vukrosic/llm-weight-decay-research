@@ -1,0 +1,181 @@
+import sys
+import os
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import math
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from collections import defaultdict
+from tqdm import tqdm
+import subprocess
+import glob
+import json
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from configs.llm_config import BlueberryConfig
+from models.llm import MinimalLLM
+from optimizers.muon import Muon
+
+from utils.spectral import compute_spectral_stats, compute_singular_values
+
+def run_tracking_and_plot(tokens="2000000"):
+    print(f"Running training with --track_manifold true for {tokens} tokens...")
+    cmd = [
+        "python", "train_llm.py",
+        "--train_tokens", tokens,
+        "--track_manifold", "true"
+    ]
+    
+    subprocess.run(cmd, check=True)
+    
+    print("Training complete. Finding the latest metrics file...")
+    metric_files = glob.glob(f"plots/metrics_*{tokens}_*.json")
+    if not metric_files:
+        metric_files = glob.glob("plots/metrics_*.json")
+    if not metric_files:
+        print("ERROR: Could not find metrics file!")
+        return
+        
+    metric_files.sort(key=os.path.getmtime)
+    latest_file = metric_files[-1]
+    
+    with open(latest_file, "r") as f:
+        data = json.load(f)
+        
+    manifold_history = data["history"].get("manifold_history", None)
+    if manifold_history is None:
+        print("ERROR: manifold_history not found in metrics!")
+        return
+        
+    plot_results(manifold_history, "results/research_plots")
+
+def plot_results(history, save_dir):
+    os.makedirs(save_dir, exist_ok=True)
+    sns.set_theme(style="whitegrid")
+    
+    # 1. Training Loss
+    plt.figure(figsize=(10, 6))
+    if 'loss' in history and history['loss']:
+        plt.plot(history['loss'], color='#2c3e50', linewidth=2)
+        plt.title('Hierarchical Learning: Training Loss Convergence')
+        plt.xlabel('Steps')
+        plt.ylabel('Loss')
+        plt.grid(True, alpha=0.3)
+        plt.savefig(os.path.join(save_dir, 'loss.png'), dpi=300)
+    plt.close()
+
+    # 2. Q vs V Spectral Max (First vs Last)
+    plt.figure(figsize=(12, 7))
+    colors = ['#3498db', '#2980b9', '#e74c3c', '#c0392b']
+    # Dynamically find the last layer index
+    k_layers = sorted([int(k.split('_')[-1]) for k in history.keys() if k.startswith('spec_norm_Q_') and k.split('_')[-1].isdigit()])
+    last_idx = k_layers[-1] if k_layers else 0
+    
+    keys = ['spec_norm_Q_0', 'spec_norm_V_0', f'spec_norm_Q_{last_idx}', f'spec_norm_V_{last_idx}']
+    labels = ['Q (First)', 'V (First)', f'Q (Layer {last_idx})', f'V (Layer {last_idx})']
+    
+    for k, l, c in zip(keys, labels, colors):
+        if k in history and history[k]:
+            data = history[k]
+            # Only downsample if we have lots of data
+            step_size = max(1, len(data) // 100)
+            plt.plot(data[::step_size], label=l, color=c, linewidth=2, marker='o' if len(data) < 20 else None)
+            
+    plt.title('Hierarchical Stretching: Max Spectral Norm Evolution')
+    plt.xlabel('Optimizer Steps (downsampled)')
+    plt.ylabel('Spectral / Operator Norm')
+    plt.legend(frameon=True)
+    plt.grid(True, alpha=0.3)
+    plt.savefig(os.path.join(save_dir, 'spectral_stretching_evolution.png'), dpi=300)
+    plt.close()
+
+    # 3. Spectral Gap (Q projections)
+    plt.figure(figsize=(10, 6))
+    if 'spec_gap_Q_0' in history and history['spec_gap_Q_0']:
+        data0 = history['spec_gap_Q_0']
+        step0 = max(1, len(data0) // 100)
+        plt.plot(data0[::step0], label='Layer 0 Gap', color='#16a085', marker='o' if len(data0) < 20 else None)
+    if 'spec_gap_Q_last' in history and history['spec_gap_Q_last']:
+        datalast = history['spec_gap_Q_last']
+        steplast = max(1, len(datalast) // 100)
+        plt.plot(datalast[::steplast], label='Layer Last Gap', color='#d35400', marker='o' if len(datalast) < 20 else None)
+    plt.title('Spectral Gap ($\sigma_1 / \sigma_2$): Signature of Singular Feature Focus')
+    plt.xlabel('Steps')
+    plt.ylabel('Gap Ratio')
+    plt.legend()
+    plt.savefig(os.path.join(save_dir, 'spectral_gap.png'), dpi=300)
+    plt.close()
+
+    # 4. Layer Norm Heatmap (Final Step)
+    # We expect keys like 'all_layers_Q_norm', 'all_layers_V_norm' which are lists of norms for each layer
+    plt.figure(figsize=(16, 5))
+    norm_matrix = []
+    layer_names = []
+    
+    # Collect all 'spec_norm_Q_i' available in the last history entry
+    q_norms = []
+    v_norms = []
+    k_layers = sorted([int(k.split('_')[-1]) for k in history.keys() if k.startswith('spec_norm_Q_') and k.split('_')[-1].isdigit()])
+    
+    for i in k_layers:
+        q_norms.append(history[f'spec_norm_Q_{i}'][-1])
+        v_norms.append(history[f'spec_norm_V_{i}'][-1])
+        layer_names.append(f"Layer {i}")
+        
+    if q_norms and v_norms:
+        heatmap_data = np.array([q_norms, v_norms])
+        sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="YlGnBu", 
+                    xticklabels=layer_names, yticklabels=['Query', 'Value'],
+                    annot_kws={"size": 8})
+        plt.title('Final Spectral Norm Distribution Across Layers')
+        plt.tight_layout()
+        plt.savefig(os.path.join(save_dir, 'norm_heatmap.png'), dpi=300)
+    plt.close()
+
+    # 5. Top Singular Values (Final Step)
+    plt.figure(figsize=(10, 6))
+    if 'spec_vals_Q_0' in history and history['spec_vals_Q_0']:
+        v0 = history['spec_vals_Q_0'][-1]
+        vlast = history['spec_vals_Q_last'][-1]
+        plt.bar(np.arange(len(v0))-0.2, v0, width=0.4, label='Layer 0 (Query)', alpha=0.8)
+        plt.bar(np.arange(len(vlast))+0.2, vlast, width=0.4, label='Layer Last (Query)', alpha=0.8)
+        plt.title('Top 10 Singular Values: Spectral Signatures')
+        plt.xlabel('Singular Value Index')
+        plt.ylabel('Value')
+        plt.legend()
+        plt.savefig(os.path.join(save_dir, 'singular_spectrum.png'), dpi=300)
+    plt.close()
+
+    print(f"Research plots successfully saved to {save_dir}/")
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tokens", type=str, default="2000000")
+    parser.add_argument("--plot_only", action="store_true")
+    parser.add_argument("--metrics_file", type=str, default=None)
+    args = parser.parse_args()
+    
+    if args.plot_only:
+        metrics_files = glob.glob("plots/metrics_*.json")
+        if args.metrics_file:
+            latest_file = args.metrics_file
+        elif metrics_files:
+            latest_file = max(metrics_files, key=os.path.getmtime)
+        else:
+            print("No metrics files found.")
+            exit(1)
+            
+        print(f"Reading manifold history from {latest_file}...")
+        with open(latest_file, "r") as f:
+            data = json.load(f)
+        manifold_history = data.get("history", {}).get("manifold_history", None)
+        if manifold_history:
+            plot_results(manifold_history, "results/research_plots")
+        else:
+            print("No manifold history found.")
+    else:
+        run_tracking_and_plot(args.tokens)

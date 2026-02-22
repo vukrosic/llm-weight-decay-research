@@ -1,48 +1,54 @@
-# 5-Dollar LLM (Blueberry 88M)
+# Muon Research Lab (Blueberry 88M)
 
-Help us build top 10 LLM in the world while keeping it fully open source, which will accelerate everyone and everything that uses LLMs (science, technology, medicine, startups, businesses, etc.)
+This repository is dedicated to the research and analysis of the **Muon optimizer** and its impact on Large Language Model (LLM) training dynamics. We shift our focus from competitive speedrunning to deep structural investigation of how manifold-aware optimization shapes transformer representations.
 
-> Check out our contributors [leaderboard](docs/LEADERBOARD.md)!
+## 🔬 Research Focus: Hierarchical Stretching
 
-## 🗺️ Open Superintelligence Lab Roadmap
+Our primary research direction is **Hierarchical Stretching**—the observation that Muon-trained models dynamically modulate spectral signatures across layers. We provide tools to track these manifolds in real-time.
 
-**Our goals:**
-1. **GPT-1** Level - Dec 20 2025 ✓ [Watch](https://youtu.be/1nf6mVNN2lo)
-2. **GPT-2** Level - next
-
----
-
-Can you make our LLM train faster and better?
-
-We keep the contributions scintifically rigurous. See **[Contributing Guidelines](docs/CONTRIBUTING.md)**.
-
-👉 **[Full Setup Guide](docs/SETUP_INSTRUCTIONS.md)** | **[Leaderboard](docs/LEADERBOARD.md)**
+### Key Research Features:
+- **Manifold Tracking**: Track spectral norms, spectral gaps, and singular value distributions per-layer.
+- **Spectral Analysis Utilities**: High-performance SVD-based statistics calculation (CPU-offloaded).
+- **Visualization Suite**: Generate hierarchical stretching reports and layer-wise heatmaps.
 
 ---
 
-## Acceptance criteria:
+## 🚀 Getting Started
 
-For the code to be accepted it must be **measured** and **break the record**. 🚀
+### 1. Training with Manifold Tracking
+To train a model while tracking its manifold evolution, use the `--track_manifold true` flag:
 
-If we just add more features / code / architectures but records aren't getting broken, there is no progress. 📉
+```bash
+python train_llm.py --train_tokens 8000000 --track_manifold true
+```
 
-> [!IMPORTANT]
-> Consider **more code = bad** (complexity, bloat, maintenance, bugs when upgrading), unless there is a new record in the training speed / loss, which justifies adding code. ✨
+### 2. Generating Research Plots
+After training, you can generate the research visualizations using the tracking script:
 
-0. Once you measure an improvement over the baseline according to the [Setup Guide](docs/SETUP_INSTRUCTIONS.md), submit your code in a GitHub pull request.
-1. The LLM must train faster or achieve lower loss on any of the benchmarks (8M, 20M, 100M, 1B tokens).
-2. Lower loss takes priority over training speed because pretraining data is limited - if your submission trains slower but achieves better (lower) loss for the same amount of tokens, it will probably be accepted, and vice versa.
-3. Add as little code as possible, keep it clean, rewrite AI generated pull request descriptions to increase quality.
-4. Submissions are judged case by case, tradeoffs between speed / loss etc. will be taken into account.
+```bash
+python research_muon/track_manifold.py --plot_only
+```
+
+Plots will be saved to `results/research_plots/`.
+
+---
+
+## 📊 Experimental Setup
+- **Model**: Blueberry (88M Params, 22 layers, 512 d_model)
+- **Optimizer**: Muon (Orthogonalized 2D Updates)
+- **Dataset**: speedrun_40M (Curated subset)
+
+## 📈 Recent Findings
+Check out our latest research reports in the `research_muon/` folder:
+- [Hierarchical Stretching Report](research_muon/hierarchical_stretching.md)
+- [Modular Manifolds Concept](research_muon/modular-manifolds.md)
 
 ---
 
 ## 🤝 Partners & Support
 
-**If you want to write a research paper improving this project, or if you or someone you know has extensive research experience and wants to contribute to this open-source initiative, contact me.**
+If you are interested in collaborating on Muon research or manifold optimization, please reach out. We aim to keep all findings fully open source.
 
-We will partner with compute providers while keeping all research/engineering/code fully open source.
-
-**Potential partners include:** Hugging Face, NVIDIA, Microsoft, Google, Amazon, Meta, IBM, Oracle, Alibaba, Tencent, Huawei, Baidu, CoreWeave, Lambda Labs, Hyperbolic, Stability AI, OpenAI, Anthropic, xAI, Cohere, Mistral AI, Graphcore, Tenstorrent, Intel, AMD, Dell Technologies, ai2, a16z, Sequoia Capital, and more.
+**Partners include:** Hugging Face, NVIDIA, Microsoft, Google, and more.
 
 
