@@ -8,7 +8,7 @@ We hypothesized that while Muon enforces orthogonal constraints on parameter mat
 
 ## 📊 Experimental Setup
 - **Model**: Blueberry-Nano (88M Params, 22 layers, 512 d_model)
-- **Data**: 20 Million tokens (SmolLM-style dataset mix)
+- **Data**: 50 Million tokens (SmolLM-style dataset mix)
 - **Optimizer**: Muon (orthogonalized 2D updates for 2D params)
 - **Tracking**: Per-step extraction of:
     - **Max Spectral Norm ($\sigma_{max}$)**: Maximum singular value.
@@ -43,6 +43,16 @@ Unlike standard optimizers which can lead to uncontrolled spectral growth, Muon 
 #### D. Spectral Gap
 ![Spectral Gap](../results/research_plots/spectral_gap.png)
 *Insight: The persistent gap in deep layers shows that they maintain a clear "primary direction" for information flow, a signature of specialized semantic processing.*
+
+## ⚖️ Stability & Scaling Analysis
+A common question in Muon training is whether the linear-like growth of the spectral norm (reaching ~20 in our 50M run) leads to instability.
+
+### Why it remains stable:
+1. **Geometric Regularization**: Muon updates are orthogonal ($||\Delta W||_2 = 1$). While the matrix $W$ grows additively, its frame remains well-conditioned.
+2. **RMSNorm Buffer**: Modern architectures use RMSNorm/LayerNorm which normalizes the activations before the next layer. Even if a weight matrix has a norm of 20, the *relative* variance of the signal is managed.
+3. **Sub-linear Growth**: Notice in the Evolution plot that the slope is slightly decreasing over time. The model is not perfectly "stacking" every update; it's rotating on the manifold, which naturally tames the growth compared to the theoretical maximum (which would be ~73 at this stage).
+
+**Conclusion on Stability**: We expect this "Hierarchical Stretching" to remain stable as long as the learning rate is tuned to avoid excessive activation variance. In our 50M run, the loss continues to decrease smoothly, suggesting the stretching is a healthy feature of Muon learning, not a precursor to collapse.
 
 ## 🚀 Conclusion
 Hierarchical Stretching is an emergent property of Muon-trained models. It confirms that the transformer architecture utilizes its geometric freedom to specialize layers for different semantic tasks. Muon enhances this process by providing a stable, manifold-aware training trajectory.
