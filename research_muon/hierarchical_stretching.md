@@ -8,6 +8,7 @@ We hypothesized that while Muon enforces orthogonal constraints on parameter mat
 
 ## 📊 Experimental Setup
 - **Model**: Blueberry-Nano (88M Params, 22 layers, 512 d_model)
+- **Data**: 20 Million tokens (SmolLM-style dataset mix)
 - **Optimizer**: Muon (orthogonalized 2D updates for 2D params)
 - **Tracking**: Per-step extraction of:
     - **Max Spectral Norm ($\sigma_{max}$)**: Maximum singular value.
@@ -35,9 +36,9 @@ Unlike standard optimizers which can lead to uncontrolled spectral growth, Muon 
 ![Norm Heatmap](../results/research_plots/norm_heatmap.png)
 *Insight: The heatmap reveals a smooth gradient of spectral stretching. As we move from Layer 0 to Layer 21, the "spectral temperature" rises, confirming that hierarchical depth corresponds to increased spectral focus.*
 
-#### C. Singular Spectrum
+#### C. Feature Concentration (Singular Spectrum)
 ![Singular Spectrum](../results/research_plots/singular_spectrum.png)
-*Insight: By comparing the top singular values, we see that deeper layers have a steeper decay compared to the foundation. This confirms that Muon allows deeper layers to "collapse" onto more meaningful, singular directions.*
+*Insight: By comparing the top singular values, we see that deeper layers concentrate more of their learnable capacity into fewer, more dominant features. This is evidenced by a steeper decay in the spectrum compared to the foundation layers, which remain more expressive across all dimensions.*
 
 #### D. Spectral Gap
 ![Spectral Gap](../results/research_plots/spectral_gap.png)

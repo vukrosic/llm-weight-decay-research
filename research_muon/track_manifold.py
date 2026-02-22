@@ -85,7 +85,7 @@ def plot_results(history, save_dir):
             plt.plot(data[::step_size], label=l, color=c, linewidth=2, marker='o' if len(data) < 20 else None)
             
     plt.title('Hierarchical Stretching: Max Spectral Norm Evolution')
-    plt.xlabel('Optimizer Steps (downsampled)')
+    plt.xlabel('Optimizer Steps')
     plt.ylabel('Spectral / Operator Norm')
     plt.legend(frameon=True)
     plt.grid(True, alpha=0.3)
@@ -117,19 +117,21 @@ def plot_results(history, save_dir):
     
     # Collect all 'spec_norm_Q_i' available in the last history entry
     q_norms = []
+    k_norms = []
     v_norms = []
     k_layers = sorted([int(k.split('_')[-1]) for k in history.keys() if k.startswith('spec_norm_Q_') and k.split('_')[-1].isdigit()])
     
     for i in k_layers:
         q_norms.append(history[f'spec_norm_Q_{i}'][-1])
+        k_norms.append(history.get(f'spec_norm_K_{i}', [0])[-1]) # Fallback for old logs
         v_norms.append(history[f'spec_norm_V_{i}'][-1])
-        layer_names.append(f"Layer {i}")
+        layer_names.append(f"L{i}") # Shorter names for better fit
         
     if q_norms and v_norms:
-        heatmap_data = np.array([q_norms, v_norms])
+        heatmap_data = np.array([q_norms, k_norms, v_norms])
         sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="YlGnBu", 
-                    xticklabels=layer_names, yticklabels=['Query', 'Value'],
-                    annot_kws={"size": 8})
+                    xticklabels=layer_names, yticklabels=['Query', 'Key', 'Value'],
+                    annot_kws={"size": 7})
         plt.title('Final Spectral Norm Distribution Across Layers')
         plt.tight_layout()
         plt.savefig(os.path.join(save_dir, 'norm_heatmap.png'), dpi=300)

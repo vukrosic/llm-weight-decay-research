@@ -86,6 +86,9 @@ def train_model(
     extra_config: Optional[Dict[str, Any]] = None,
     log_every: int = 100,
     track_manifold: bool = False,
+    checkpoint_dir: Optional[str] = "checkpoints",
+    checkpoint_every: int = 500,
+    resume_from: Optional[str] = None,
 ) -> Any:
     """
     Generic training function that can be used by experiments.
@@ -129,12 +132,28 @@ def train_model(
     if track_manifold:
         metrics_history['manifold_history'] = defaultdict(list)
 
+    # Resume from checkpoint if specified
+    start_step = 0
+    start_tokens = 0
+    if resume_from and os.path.exists(resume_from):
+        print(f"🔄 Resuming from checkpoint: {resume_from}")
+        checkpoint = torch.load(resume_from, map_location=device, weights_only=False)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        for i, opt in enumerate(optimizers):
+            opt.load_state_dict(checkpoint['optimizer_states'][i])
+        for i, sch in enumerate(schedulers):
+            sch.load_state_dict(checkpoint['scheduler_states'][i])
+        metrics_history = checkpoint['metrics_history']
+        start_step = checkpoint['step']
+        start_tokens = checkpoint['tokens_seen']
+        print(f"   Resumed at step {start_step}, tokens {start_tokens:,}")
+
     # Training loop
     model.train()
-    step = 0
-    tokens_seen = 0
+    step = start_step
+    tokens_seen = start_tokens
     desc = "Training"
-    pbar = tqdm(total=config.train_tokens, desc=desc, unit="tokens")
+    pbar = tqdm(total=config.train_tokens, desc=desc, unit="tokens", initial=tokens_seen)
     
     stopped_early = False
 
@@ -246,12 +265,15 @@ def train_model(
                             kv_size = block.attention.kv_size
                             
                             w_q = proj[:q_size]
+                            w_k = proj[q_size : q_size + kv_size]
                             w_v = proj[q_size + kv_size : q_size + 2 * kv_size]
                             
                             q_stats = compute_spectral_stats(w_q)
+                            k_stats = compute_spectral_stats(w_k)
                             v_stats = compute_spectral_stats(w_v)
                             
                             metrics_history['manifold_history'][f'spec_norm_Q_{i}'].append(q_stats['max'])
+                            metrics_history['manifold_history'][f'spec_norm_K_{i}'].append(k_stats['max'])
                             metrics_history['manifold_history'][f'spec_norm_V_{i}'].append(v_stats['max'])
                             
                             # Track detailed stats for first and last layers
@@ -302,6 +324,23 @@ def train_model(
                         current_loss_val = ce_loss.item()
                         stopped_early = True
                         break
+
+            # Save periodic checkpoint
+            if checkpoint_dir and step > 0 and step % checkpoint_every == 0:
+                ckpt_dir = Path(checkpoint_dir)
+                ckpt_dir.mkdir(parents=True, exist_ok=True)
+                ckpt_path = ckpt_dir / "latest_checkpoint.pt"
+                
+                # We save a minimal set needed for resuming
+                torch.save({
+                    'step': step,
+                    'tokens_seen': tokens_seen,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_states': [opt.state_dict() for opt in optimizers],
+                    'scheduler_states': [sch.state_dict() for sch in schedulers] if schedulers else [],
+                    'metrics_history': metrics_history,
+                }, ckpt_path)
+                # print(f"   💾 Checkpoint saved at step {step}")
 
             step += 1
         
@@ -469,6 +508,8 @@ def train_minimal_llm(
     load_weights_path: Optional[str] = None,
     compare_baseline: bool = False,
     track_manifold: bool = False,
+    resume: bool = False,
+    checkpoint_dir: str = "checkpoints",
 ):
     print(f"\n🚀 Training dense model")
     setup_start = time.time()
@@ -595,6 +636,8 @@ def train_minimal_llm(
         extra_config=None,
         log_every=getattr(config, 'log_every', 100),
         track_manifold=track_manifold,
+        resume_from=os.path.join(checkpoint_dir, "latest_checkpoint.pt") if resume else None,
+        checkpoint_dir=checkpoint_dir
     )
     
     total_training_time = results['training_time']

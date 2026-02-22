@@ -202,7 +202,7 @@ def main():
     parser = argparse.ArgumentParser(description="Train MoE Model")
     parser.add_argument("--muon_lr", type=float, help="Override Muon learning rate")
     parser.add_argument("--adamw_lr", type=float, help="Override AdamW learning rate")
-    parser.add_argument("--train_tokens", type=int, default=8000000, help="Override train_tokens")
+    parser.add_argument("--train_tokens", type=int, default=20000000, help="Override train_tokens")
     parser.add_argument("--output_dir", type=str, default="./checkpoints", help="Output directory")
     parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.BlueberryConfig)")
     parser.add_argument("--load_checkpoint", type=str, help="Path to checkpoint file to load weights from")
@@ -215,6 +215,8 @@ def main():
     parser.add_argument("--log_every", type=int, default=100, help="Logging frequency in steps")
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
     parser.add_argument("--track_manifold", type=str, default="false", help="Whether to track manifold spectral statistics (true/false)")
+    parser.add_argument("--resume", action="store_true", help="Resume training from latest_checkpoint.pt in the output directory")
+    parser.add_argument("--checkpoint_dir", type=str, default="./checkpoints", help="Directory to save periodic checkpoints")
 
     args = parser.parse_args()
 
@@ -358,7 +360,9 @@ def main():
         val_loader, 
         output_dir=output_dir, 
         load_weights_path=args.load_checkpoint,
-        track_manifold=(args.track_manifold.lower() == "true")
+        track_manifold=(args.track_manifold.lower() == "true"),
+        resume=args.resume,
+        checkpoint_dir=args.checkpoint_dir
     )
 
 
