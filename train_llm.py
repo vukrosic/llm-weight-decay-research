@@ -400,6 +400,9 @@ def main():
     if calc_num_docs < 100:
         calc_num_docs = 100
         
+    # Cap docs to prevent out of disk space (limit cache to ~2GB, DataLoader will cycle)
+    calc_num_docs = min(calc_num_docs, 250000)
+        
     print(f"Dynamic Data Calculation:")
     print(f"  Batch: {config.batch_size}, Seq: {config.max_seq_len}, Accumulation: {config.gradient_accumulation_steps}")
     print(f"  Target tokens: {total_tokens_needed:,}")
