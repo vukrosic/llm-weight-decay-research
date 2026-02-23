@@ -1,0 +1,61 @@
+{
+  "final_metrics": {
+    "val_loss": 6.485936470031739,
+    "val_accuracy": 0.15166829506595017,
+    "val_perplexity": 655.8528632968877,
+    "train_loss": 6.528268337249756
+  },
+  "setup_time_seconds": 4.863038063049316,
+  "active_training_time_seconds": 134.94010281562805,
+  "total_wall_time_seconds": 139.80314087867737,
+  "total_time_minutes": 2.330052347977956,
+  "actual_steps": 123,
+  "tokens_seen": 2015232,
+  "train_tokens": 2000000,
+  "experiment_config": {
+    "optimizer_type": "adamw",
+    "muon_lr": 0.024,
+    "adamw_lr": 0.0005,
+    "batch_size": 8,
+    "gradient_accumulation_steps": 1
+  },
+  "history": {
+    "steps": [
+      0,
+      50,
+      100,
+      123
+    ],
+    "val_losses": [
+      10.887679901123047,
+      7.065953750610351,
+      6.616097564697266,
+      6.485936470031739
+    ],
+    "val_accuracies": [
+      0.00736809965803615,
+      0.10978016609672692,
+      0.13940034196384954,
+      0.15166829506595017
+    ],
+    "val_perplexities": [
+      53513.00038005953,
+      1171.3986610374648,
+      747.0241879262381,
+      655.8528632968877
+    ],
+    "elapsed_times": [
+      0.1074104388554891,
+      0.845606017112732,
+      1.8672563314437867,
+      2.2490003943443297
+    ],
+    "learning_rates": [
+      0.0005,
+      0.0005,
+      0.0005,
+      0.0005
+    ],
+    "manifold_history": []
+  }
+}
