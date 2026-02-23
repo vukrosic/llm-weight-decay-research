@@ -4,24 +4,19 @@ This repository investigates how the **Muon optimizer** shapes transformer repre
 
 ## 🔬 Research Focus: Hierarchical Stretching
 
-Our primary research direction is **Hierarchical Stretching**—the observation that Muon-trained models dynamically modulate spectral signatures across layers. We provide tools to track these manifolds in real-time.
-
-### Key Research Features:
-- **Manifold Tracking**: Track spectral norms, spectral gaps, and singular value distributions per-layer.
-- **Spectral Analysis Utilities**: High-performance SVD-based statistics calculation (CPU-offloaded).
-- **Visualization Suite**: Generate hierarchical stretching reports and layer-wise heatmaps.
-
----
+Our core investigation centers on "Hierarchical Stretching"—the observation that different layers in a transformer specialize spectrally over time. We track manifold spectral statistics (spectral norm, entropy, subspace alignment) to understand the "hidden geometry" of training.
 
 ## 🚀 Getting Started
 
-### 0. Setup
-
+### 1. Environment Setup
 ```bash
+git clone https://github.com/vukrosic/muon-llm-research
+cd muon-llm-research
 pip install -r requirements.txt
 ```
 
-Download dataset:
+### 2. Data Preparation
+For the 2B research suite, you need the full token mix:
 ```bash
 python3 -c "
 from datasets import load_dataset
@@ -30,36 +25,39 @@ print('Downloading 2B Pretraining Data...')
 ds = load_dataset('vukrosic/blueberry-2B-pretrain')
 os.makedirs('processed_data/pretrain_2B', exist_ok=True)
 ds.save_to_disk('processed_data/pretrain_2B')
-print('✅ Full Data Ready!')
 "
 ```
 
-### 1. Training with Manifold Tracking
-To train a model while tracking its manifold evolution, use the `--track_manifold true` flag:
+## 🔬 Running Research Experiments
 
+For rigorous investigation, we use explicit YAML configs to ensure reproducibility. To launch the suite across multiple GPUs:
+
+**GPU 0 (Muon Seed 42)**: 
 ```bash
-python train_llm.py --train_tokens 8000000 --track_manifold true
+CUDA_VISIBLE_DEVICES=0 python train_llm.py --config_yaml configs/experiments/muon_seed_42.yaml
 ```
 
-### 2. Generating Research Plots
-After training, you can generate the research visualizations using the tracking script:
+**GPU 1 (AdamW Seed 42)**: 
+```bash
+CUDA_VISIBLE_DEVICES=1 python train_llm.py --config_yaml configs/experiments/adamw_seed_42.yaml
+```
 
+Each specific config in `configs/experiments/` defines its own `output_dir` and `seed` and inherits the base architecture from `base_2B.yaml`.
+
+## 📊 Analysis & Visualization
+
+After training, generate research visualizations from the logged manifold metrics:
 ```bash
 python research_muon/track_manifold.py --plot_only
 ```
-
 Plots will be saved to `results/research_plots/`.
 
+## 🛠 Contribution Guidelines
+
+We welcome contributions that improve our understanding of optimizer geometry or training efficiency.
+- **Rigor over speed**: We value stable spectral signatures over minor FLOP reductions.
+- **Reproducibility**: All experiments must be accompanied by a YAML config.
+- **Single Variable**: Only change one hyperparameter or architectural feature at a time to isolate effects.
+
 ---
-
-## 📊 Experimental Setup
-- **Model**: Blueberry (88M Params, 22 layers, 512 d_model)
-- **Optimizer**: Muon (Orthogonalized 2D Updates)
-- **Dataset**: Blueberry-2B (Full pre-training mix)
-
-## 📈 Recent Findings
-Check out our latest research reports in the `research_muon/` folder:
-- [Hierarchical Stretching Report](research_muon/hierarchical_stretching.md)
-- [Spectral Dynamics Update vs Weight](research_muon/spectral_dynamics_update_vs_weight.md)
-
-
+*Training Dynamics Investigation*
