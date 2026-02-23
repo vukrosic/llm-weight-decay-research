@@ -73,21 +73,9 @@ def plot_grid(all_data, metric='entropy'):
                 
                 if not run_values: continue
                 
-                # Interpolate to common steps for variance band
-                # Assume all runs have same steps or find union
-                all_steps = sorted(list(set().union(*[set(rv[0]) for rv in run_values])))
-                
-                interp_results = []
-                for steps, vals in run_values:
-                    interp_vals = np.interp(all_steps, steps, vals)
-                    interp_results.append(interp_vals)
-                
-                interp_results = np.array(interp_results)
-                mean = np.mean(interp_results, axis=0)
-                std = np.std(interp_results, axis=0)
-                
-                ax.plot(all_steps, mean, color=colors[opt], label=opt.upper())
-                ax.fill_between(all_steps, mean - std, mean + std, color=colors[opt], alpha=0.2)
+                for i, (steps, vals) in enumerate(run_values):
+                    label = opt.upper() if i == 0 else None
+                    ax.plot(steps, vals, color=colors[opt], alpha=0.6, linewidth=1.5, label=label)
             
             if r_idx == 0:
                 ax.set_title(f"Projection: {proj.upper()}", fontsize=14)
