@@ -20,7 +20,9 @@ from utils.logger import setup_logging
 
 # Worker init function to ensure each worker has a deterministic seed
 def worker_init_fn(worker_id):
-    worker_seed = 42 + worker_id
+    # We'll use a globally set seed or a default
+    base_seed = getattr(worker_init_fn, "base_seed", 42)
+    worker_seed = base_seed + worker_id
     np.random.seed(worker_seed)
     random.seed(worker_seed)
 
@@ -267,12 +269,13 @@ def main():
     logger.info("Starting training")
 
     print_system_info()
-    set_seed(42)
+    
     parser = argparse.ArgumentParser(description="Train MoE Model")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--muon_lr", type=float, default=None, help="Override Muon learning rate")
     parser.add_argument("--adamw_lr", type=float, default=None, help="Override AdamW learning rate")
     parser.add_argument("--train_tokens", type=int, default=None, help="Override train_tokens")
-    parser.add_argument("--output_dir", type=str, default="./checkpoints", help="Output directory")
+    parser.add_argument("--output_dir", type=str, default=None, help="Output directory")
     parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.BlueberryConfig)")
     parser.add_argument("--config_yaml", type=str, help="Path to YAML config file")
     parser.add_argument("--load_checkpoint", type=str, help="Path to checkpoint file to load weights from")
@@ -286,11 +289,16 @@ def main():
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
     parser.add_argument("--track_manifold", type=str, default="false", help="Whether to track manifold spectral statistics (true/false)")
     parser.add_argument("--resume", action="store_true", help="Resume training from latest_checkpoint.pt in the output directory")
-    parser.add_argument("--checkpoint_dir", type=str, default="./checkpoints", help="Directory to save periodic checkpoints")
+    parser.add_argument("--checkpoint_dir", type=str, default=None, help="Directory to save periodic checkpoints")
     parser.add_argument("--optimizer", type=str, help="Optimizer type (muon or adamw)")
     parser.add_argument("--raw_metrics_dir", type=str, help="Directory to save JSONL raw metrics")
 
     args = parser.parse_args()
+
+    # Set overall seed
+    set_seed(args.seed)
+    # Set seed for worker_init_fn
+    worker_init_fn.base_seed = args.seed
 
     # Load Config
     if args.config_yaml:
@@ -342,6 +350,12 @@ def main():
         config.log_every = args.log_every
     if args.optimizer is not None:
         config.optimizer_type = args.optimizer
+    if args.seed is not 42 or config.seed == 42: # Only override if user provided it or if config is default
+        config.seed = args.seed
+    
+    # Finally, set variables that were derived from overrides
+    set_seed(config.seed)
+    worker_init_fn.base_seed = config.seed
     
     # Define custom milestones for validation curves and autosetup logging
     # For 8M benchmark (approx 488 steps)
@@ -418,7 +432,7 @@ def main():
 
     # Generator for reproducible shuffling
     g = torch.Generator()
-    g.manual_seed(42)
+    g.manual_seed(args.seed)
 
     loader_args = dict(
         batch_size=config.batch_size,
@@ -445,12 +459,12 @@ def main():
         config, 
         train_loader, 
         val_loader, 
-        output_dir=output_dir, 
+        output_dir=args.output_dir if args.output_dir else config.output_dir, 
         load_weights_path=args.load_checkpoint,
-        track_manifold=(args.track_manifold.lower() == "true"),
+        track_manifold=(args.track_manifold.lower() == "true") or config.track_manifold,
         resume=args.resume,
-        checkpoint_dir=args.checkpoint_dir,
-        raw_metrics_dir=args.raw_metrics_dir
+        checkpoint_dir=args.checkpoint_dir if args.checkpoint_dir else config.checkpoint_dir,
+        raw_metrics_dir=args.raw_metrics_dir if args.raw_metrics_dir else config.raw_metrics_dir
     )
 
 

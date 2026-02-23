@@ -1,0 +1,5 @@
+# AdamW seed 42
+optimizer_type: "adamw"
+seed: 42
+output_dir: "./results/adamw_seed_42"
+raw_metrics_dir: "./results/adamw_seed_42/raw_metrics"

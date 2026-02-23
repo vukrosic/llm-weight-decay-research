@@ -27,7 +27,7 @@ class BlueberryConfig:
     compile_model: bool = True
     batch_size: int = 8
     gradient_accumulation_steps: int = 1
-    train_tokens: int = 8000000
+    train_tokens: int = 2000000000
     
     # Learning Rate (Aggressive for pre-training)
     muon_lr: float = 0.024
@@ -51,10 +51,16 @@ class BlueberryConfig:
     # Logging & Checkpoints
     log_every: int = 100
     save_every: int = 5000
-    track_manifold: bool = False
+    track_manifold: bool = True
     detailed_log_every: int = 500
     log_milestones: Tuple[int, ...] = (100, 500, 1000)
     checkpoint_token_milestone: int = 200_000_000 # Save checkpoint every 200M tokens
+    
+    # New paths and seed
+    seed: int = 42
+    output_dir: str = "./checkpoints"
+    raw_metrics_dir: Optional[str] = None
+    checkpoint_dir: str = "./checkpoints"
 
     def __post_init__(self):
         self.d_k = self.d_model // self.n_heads

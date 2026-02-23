@@ -1,6 +1,6 @@
-# Muon Research Lab (Blueberry 88M)
+# Muon Training Dynamics: A Structural Investigation (88M)
 
-This repository is dedicated to the research and analysis of the **Muon optimizer** and its impact on Large Language Model (LLM) training dynamics. We shift our focus from competitive speedrunning to deep structural investigation of how manifold-aware optimization shapes transformer representations.
+This repository investigates how the **Muon optimizer** shapes transformer representations during training. We focus on the geometric evolution of weight manifolds, specifically looking for anomalies and learning signatures that differentiate manifold-aware optimization from standard AdamW.
 
 ## 🔬 Research Focus: Hierarchical Stretching
 
@@ -55,19 +55,11 @@ Plots will be saved to `results/research_plots/`.
 ## 📊 Experimental Setup
 - **Model**: Blueberry (88M Params, 22 layers, 512 d_model)
 - **Optimizer**: Muon (Orthogonalized 2D Updates)
-- **Dataset**: speedrun_40M (Curated subset)
+- **Dataset**: Blueberry-2B (Full pre-training mix)
 
 ## 📈 Recent Findings
 Check out our latest research reports in the `research_muon/` folder:
 - [Hierarchical Stretching Report](research_muon/hierarchical_stretching.md)
-- [Modular Manifolds Concept](research_muon/modular-manifolds.md)
-
----
-
-## 🤝 Partners & Support
-
-If you are interested in collaborating on Muon research or manifold optimization, please reach out. We aim to keep all findings fully open source.
-
-**Partners include:** Hugging Face, NVIDIA, Microsoft, Google, and more.
+- [Spectral Dynamics Update vs Weight](research_muon/spectral_dynamics_update_vs_weight.md)
 
 

@@ -58,4 +58,4 @@ A common question in Muon training is whether the linear-like growth of the spec
 Hierarchical Stretching is an emergent property of Muon-trained models. It confirms that the transformer architecture utilizes its geometric freedom to specialize layers for different semantic tasks. Muon enhances this process by providing a stable, manifold-aware training trajectory.
 
 ---
-*Created by the Muon LLM Research Team*
+*Training Dynamics Investigation*
