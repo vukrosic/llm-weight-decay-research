@@ -2,9 +2,9 @@
 
 This repository investigates how the **Muon optimizer** shapes transformer representations during training. We focus on the geometric evolution of weight manifolds, specifically looking for anomalies and learning signatures that differentiate manifold-aware optimization from standard AdamW.
 
-## 🔬 Research Focus: Hierarchical Stretching
+## 🔬 Research Focus: Investigating spectral dynamics across layers and projection types
 
-Our core investigation centers on "Hierarchical Stretching"—the observation that different layers in a transformer specialize spectrally over time. We track manifold spectral statistics (spectral norm, entropy, subspace alignment) to understand the "hidden geometry" of training.
+Our core investigation centers on investigating spectral dynamics across layers and projection types. We track manifold spectral statistics (spectral norm, entropy, subspace alignment) to understand the "hidden geometry" of training.
 
 ## 🚀 Getting Started
 

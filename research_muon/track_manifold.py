@@ -15,7 +15,7 @@ import json
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from configs.llm_config import BlueberryConfig
+from configs.llm_config import ModelConfig
 from models.llm import MinimalLLM
 from optimizers.muon import Muon
 

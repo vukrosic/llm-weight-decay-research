@@ -11,7 +11,7 @@ from torch.amp import autocast
 from tqdm import tqdm
 from typing import List, Optional, Callable, Dict, Any
 from collections import defaultdict
-from configs.llm_config import BlueberryConfig
+from configs.llm_config import ModelConfig
 from models.llm import MinimalLLM
 from optimizers.muon import Muon
 from training.evaluation import evaluate_model
@@ -53,7 +53,7 @@ class EarlyStopping:
 
 
 
-def setup_muon_optimizer(model: nn.Module, config: BlueberryConfig):
+def setup_muon_optimizer(model: nn.Module, config: ModelConfig):
     """Setup Muon optimizer with hybrid approach or pure AdamW"""
     muon_params = []
     
@@ -112,23 +112,10 @@ def log_detailed_metrics(model, optimizers, step, tokens_seen, metrics_history, 
     device = next(model.parameters()).device
     model_to_log = model.module if hasattr(model, 'module') else model # Handle DDP/Compile
     
-    if 'layer_logs' not in metrics_history:
-        metrics_history['layer_logs'] = []
-        
-    log_entry = {
-        'step': step,
-        'tokens': tokens_seen,
-        'layers': []
-    }
-    
-    jsonl_norms = []
-    jsonl_alignment = []
-    jsonl_singular = []
+    jsonl_manifold = []
 
     with torch.no_grad():
         for i, block in enumerate(model_to_log.transformer_blocks):
-            layer_data = {'layer': i, 'projections': {}}
-            
             # Access the merged qkvo_proj
             proj_param = block.attention.qkvo_proj
             q_size = block.attention.q_size
@@ -151,7 +138,6 @@ def log_detailed_metrics(model, optimizers, step, tokens_seen, metrics_history, 
                 stats['weight_norm'] = torch.norm(W).item()
                 
                 # Gradient norm (if exists)
-                # For merged QKVO, we need to slice the grad
                 if name in ['q', 'k', 'v', 'o']:
                     param_grad = proj_param.grad
                     if param_grad is not None:
@@ -163,12 +149,11 @@ def log_detailed_metrics(model, optimizers, step, tokens_seen, metrics_history, 
                     else:
                         stats['grad_norm'] = 0.0
                 else:
-                    # MLP projections
                     W_param = block.feed_forward.up_proj.weight if name == 'up' else block.feed_forward.down_proj.weight
                     stats['grad_norm'] = torch.norm(W_param.grad).item() if W_param.grad is not None else 0.0
                     
                 # Update norm and alignment
-                # Find which optimizer has this parameter
+                update_alignment = 0.0
                 update_found = False
                 target_param = proj_param if name in ['q', 'k', 'v', 'o'] else (block.feed_forward.up_proj.weight if name == 'up' else block.feed_forward.down_proj.weight)
                 
@@ -183,51 +168,52 @@ def log_detailed_metrics(model, optimizers, step, tokens_seen, metrics_history, 
                         else:
                             dW = delta_full
                         
-                        stats['update_norm'] = torch.norm(dW).item()
-                        stats['alignment'] = compute_subspace_alignment(W, dW, k=5)
+                        update_alignment = compute_subspace_alignment(W, dW, k=5)
                         update_found = True
                         break
                 
-                if not update_found:
-                    stats['update_norm'] = 0.0
-                    stats['alignment'] = 0.0
-                
-                # Effective rank
-                stats['effective_rank'] = compute_effective_rank(W)
-                
                 # Full singular value spectrum
-                stats['singular_values'] = compute_full_singular_values(W)
+                sigma = compute_full_singular_values(W)
                 
-                layer_data['projections'][name] = stats
+                # Prepare flat record as requested
+                # We also keep effective_rank as it's useful and cheap
+                record = {
+                    "step": step,
+                    "layer": i,
+                    "proj": name,
+                    "singular_values": sigma,
+                    "update_alignment": float(update_alignment),
+                    "grad_norm": float(stats['grad_norm']),
+                    "weight_norm": float(stats['weight_norm']),
+                    "effective_rank": compute_effective_rank(W)
+                }
                 
-                # Prepare JSONL entries
-                base_info = {'step': step, 'tokens': tokens_seen, 'layer': i, 'proj': name}
-                jsonl_norms.append({**base_info, 'grad_norm': stats['grad_norm'], 'weight_norm': stats['weight_norm'], 'update_norm': stats['update_norm'], 'effective_rank': stats['effective_rank']})
-                jsonl_alignment.append({**base_info, 'alignment': stats['alignment']})
-                jsonl_singular.append({**base_info, 'singular_values': stats['singular_values']})
+                jsonl_manifold.append(record)
+                
+                # Also keep token info for time-based analysis if needed
+                record['tokens'] = tokens_seen
             
-            log_entry['layers'].append(layer_data)
-            
-    metrics_history['layer_logs'].append(log_entry)
+    # Save to metrics_history
+    if 'manifold_history' not in metrics_history:
+        metrics_history['manifold_history'] = []
+    
+    # We only append a subset or the summary to metrics_history to keep it manageable if not writing to RAW
+    # But for now, let's satisfy the "Make sure it saves" by writing to JSONL
     
     # Write to JSONL if directory provided
     if raw_metrics_dir:
         os.makedirs(raw_metrics_dir, exist_ok=True)
-        def append_jsonl(path, entries):
-            with open(path, 'a') as f:
-                for entry in entries:
-                    f.write(json.dumps(entry) + '\n')
-        
-        append_jsonl(os.path.join(raw_metrics_dir, 'norms.jsonl'), jsonl_norms)
-        append_jsonl(os.path.join(raw_metrics_dir, 'alignment.jsonl'), jsonl_alignment)
-        append_jsonl(os.path.join(raw_metrics_dir, 'singular_values.jsonl'), jsonl_singular)
+        stats_path = os.path.join(raw_metrics_dir, 'manifold_stats.jsonl')
+        with open(stats_path, 'a') as f:
+            for entry in jsonl_manifold:
+                f.write(json.dumps(entry) + '\n')
         
     print(f"   📊 Logged detailed metrics at step {step}")
 
 
 def train_model(
     model: nn.Module,
-    config: BlueberryConfig,
+    config: ModelConfig,
     train_loader: DataLoader,
     val_loader: DataLoader,
     optimizers: List[torch.optim.Optimizer],
@@ -283,7 +269,7 @@ def train_model(
     }
     
     if track_manifold:
-        metrics_history['manifold_history'] = defaultdict(list)
+        metrics_history['manifold_history'] = []
 
     # Resume from checkpoint if specified
     start_step = 0
@@ -434,78 +420,6 @@ def train_model(
                     # Console print for visibility
                     if (step > 0 and step % (log_every * 10) == 0) or stopped_early:
                         print(f" [Step {step}] Loss: {current_loss_val:.4f} | Acc: {accuracy:.3f} | LR: {current_lr:.6f}")
-
-                    # Manifold Tracking
-                    if track_manifold:
-                        with torch.no_grad():
-                            # Track all layers for heatmaps
-                            num_layers = len(model.transformer_blocks)
-                            for i, block in enumerate(model.transformer_blocks):
-                                # Access the merged qkvo_proj
-                                proj = block.attention.qkvo_proj
-                                q_size = block.attention.q_size
-                                kv_size = block.attention.kv_size
-                                
-                                w_q = proj[:q_size]
-                                w_k = proj[q_size : q_size + kv_size]
-                                w_v = proj[q_size + kv_size : q_size + 2 * kv_size]
-                                
-                                q_stats = compute_spectral_stats(w_q)
-                                k_stats = compute_spectral_stats(w_k)
-                                v_stats = compute_spectral_stats(w_v)
-                                o_stats = compute_spectral_stats(proj[block.attention.qkv_size:])
-                                
-                                up_stats = compute_spectral_stats(block.feed_forward.up_proj.weight)
-                                down_stats = compute_spectral_stats(block.feed_forward.down_proj.weight)
-                                
-                                metrics_history['manifold_history'][f'spec_norm_Q_{i}'].append(q_stats['max'])
-                                metrics_history['manifold_history'][f'spec_norm_K_{i}'].append(k_stats['max'])
-                                metrics_history['manifold_history'][f'spec_norm_V_{i}'].append(v_stats['max'])
-                                metrics_history['manifold_history'][f'spec_norm_O_{i}'].append(o_stats['max'])
-                                metrics_history['manifold_history'][f'spec_norm_Up_{i}'].append(up_stats['max'])
-                                metrics_history['manifold_history'][f'spec_norm_Down_{i}'].append(down_stats['max'])
-                                
-                                # Log Spectral Entropy (Capacity Allocation) for Q and V
-                                metrics_history['manifold_history'][f'entropy_Q_{i}'].append(compute_spectral_entropy(w_q))
-                                metrics_history['manifold_history'][f'entropy_V_{i}'].append(compute_spectral_entropy(w_v))
-                                
-                                # Log Orthogonality Error (Manifold Departure)
-                                metrics_history['manifold_history'][f'ortho_err_Q_{i}'].append(compute_orthogonality_error(w_q))
-                                metrics_history['manifold_history'][f'ortho_err_V_{i}'].append(compute_orthogonality_error(w_v))
-
-                                # Log Update-Weight Alignment (Geometric Lock-in)
-                                muon_opt = optimizers[0]
-                                if proj in muon_opt.state and 'last_update' in muon_opt.state[proj]:
-                                    delta_proj = muon_opt.state[proj]['last_update'].to(proj.device)
-                                    delta_q = delta_proj[:q_size]
-                                    delta_v = delta_proj[q_size + kv_size : q_size + 2 * kv_size]
-                                    
-                                    metrics_history['manifold_history'][f'alignment_Q_{i}'].append(compute_subspace_alignment(w_q, delta_q, k=5))
-                                    metrics_history['manifold_history'][f'alignment_V_{i}'].append(compute_subspace_alignment(w_v, delta_v, k=5))
-                                    
-                                    # Track Update Rank (The "Needle vs Wave" hypothesis)
-                                    # Handles both Muon (momentum_buffer) and AdamW (exp_avg)
-                                    m_key = 'momentum_buffer' if 'momentum_buffer' in muon_opt.state[proj] else 'exp_avg'
-                                    
-                                    if proj in muon_opt.state and m_key in muon_opt.state[proj]:
-                                        buf = muon_opt.state[proj][m_key]
-                                        buf_q = buf[:q_size]
-                                        buf_v = buf[q_size + kv_size : q_size + 2 * kv_size]
-                                        
-                                        from utils.spectral import compute_effective_rank
-                                        metrics_history['manifold_history'][f'update_rank_Q_{i}'].append(compute_effective_rank(buf_q))
-                                        metrics_history['manifold_history'][f'update_rank_V_{i}'].append(compute_effective_rank(buf_v))
-                                
-                                # Track detailed stats for first and last layers
-                                if i == 0 or i == num_layers - 1:
-                                    suffix = "0" if i == 0 else "last"
-                                    metrics_history['manifold_history'][f'spec_gap_Q_{suffix}'].append(q_stats['gap'])
-                                    metrics_history['manifold_history'][f'spec_vals_Q_{suffix}'].append(compute_singular_values(w_q, n=10))
-                            
-                            # Add loss and steps to manifold history for synchronization
-                            metrics_history['manifold_history']['loss'].append(current_loss_val)
-                            metrics_history['manifold_history']['steps'].append(step)
-                            metrics_history['manifold_history']['tokens'].append(tokens_seen)
 
                 # EVALUATION
                 is_eval_milestone = (config.eval_milestones and step in config.eval_milestones) or (config.eval_every is not None and step % config.eval_every == 0 and step > 0)
@@ -688,7 +602,7 @@ def train_model(
 
 def warmup_compiled_kernels(
     model: nn.Module,
-    config: BlueberryConfig,
+    config: ModelConfig,
     train_loader: DataLoader,
     device: torch.device,
     num_steps: int = 3
@@ -750,7 +664,7 @@ def warmup_compiled_kernels(
     print("✅ Kernels compiled and cached")
 
 def train_minimal_llm(
-    config: BlueberryConfig,
+    config: ModelConfig,
     train_loader: DataLoader,
     val_loader: DataLoader,
     output_dir: Optional[str] = None,

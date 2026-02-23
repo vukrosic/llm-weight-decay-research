@@ -1,7 +1,7 @@
-from .llm_config import BlueberryConfig
+from .llm_config import ModelConfig
 from .dataset_config import DataConfig
 
 __all__ = [
-    "BlueberryConfig",
+    "ModelConfig",
     "DataConfig",
 ]

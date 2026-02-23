@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 # Fix tokenizer parallelism warning when using DataLoader workers
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-from configs.llm_config import BlueberryConfig
+from configs.llm_config import ModelConfig
 from configs.dataset_config import DataConfig
 from training.trainer import train_minimal_llm
 from utils.helpers import set_seed, format_time
@@ -276,7 +276,7 @@ def main():
     parser.add_argument("--adamw_lr", type=float, default=None, help="Override AdamW learning rate")
     parser.add_argument("--train_tokens", type=int, default=None, help="Override train_tokens")
     parser.add_argument("--output_dir", type=str, default=None, help="Output directory")
-    parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.BlueberryConfig)")
+    parser.add_argument("--config_class", type=str, help="Python path to config class (e.g., configs.llm_config.ModelConfig)")
     parser.add_argument("--config_yaml", type=str, help="Path to YAML config file")
     parser.add_argument("--load_checkpoint", type=str, help="Path to checkpoint file to load weights from")
     parser.add_argument("--compile", type=str, help="Whether to compile the model (true/false)")
@@ -303,11 +303,11 @@ def main():
     # Load Config
     if args.config_yaml:
         import yaml
-        from configs.llm_config import BlueberryConfig # Assuming BlueberryConfig is a default base
+        from configs.llm_config import ModelConfig # Assuming ModelConfig is a default base
         print(f"Loading config from YAML: {args.config_yaml}")
         with open(args.config_yaml, 'r') as f:
             yaml_cfg = yaml.safe_load(f)
-        config = BlueberryConfig() # Initialize with a default config to ensure all attributes exist
+        config = ModelConfig() # Initialize with a default config to ensure all attributes exist
         for k, v in yaml_cfg.items():
             if hasattr(config, k):
                 setattr(config, k, v)
@@ -326,8 +326,8 @@ def main():
             raise e
     else:
         # Default to the optimized Pow2 config
-        from configs.llm_config import BlueberryConfig
-        config = BlueberryConfig()
+        from configs.llm_config import ModelConfig
+        config = ModelConfig()
 
     # Override config with args
     if args.muon_lr is not None:
