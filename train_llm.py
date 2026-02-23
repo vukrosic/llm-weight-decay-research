@@ -217,6 +217,7 @@ def main():
     parser.add_argument("--track_manifold", type=str, default="false", help="Whether to track manifold spectral statistics (true/false)")
     parser.add_argument("--resume", action="store_true", help="Resume training from latest_checkpoint.pt in the output directory")
     parser.add_argument("--checkpoint_dir", type=str, default="./checkpoints", help="Directory to save periodic checkpoints")
+    parser.add_argument("--optimizer", type=str, help="Optimizer type (muon or adamw)")
 
     args = parser.parse_args()
 
@@ -255,6 +256,8 @@ def main():
         config.gradient_accumulation_steps = args.gradient_accumulation_steps
     if args.log_every is not None:
         config.log_every = args.log_every
+    if args.optimizer is not None:
+        config.optimizer_type = args.optimizer
     
     # Define custom milestones for validation curves and autosetup logging
     # For 8M benchmark (approx 488 steps)

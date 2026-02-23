@@ -40,7 +40,12 @@ def plot_loss(metrics_file, output_file, title="Validation Loss Curve", baseline
         except Exception as e:
             print(f"Warning: Failed to load baseline file: {e}")
 
-    plt.plot(steps, val_losses, marker='o', linestyle='-', color='b', linewidth=1.5, label='Current Run Loss')
+    opt_name = data.get('experiment_config', {}).get('optimizer_type', 'Current Run')
+    if opt_name == 'Current Run':
+         # Fallback check in history or other places if needed
+         pass
+         
+    plt.plot(steps, val_losses, marker='o', linestyle='-', color='b', linewidth=1.5, label=f'{opt_name.upper()} Loss')
     
     plt.title(title)
     plt.xlabel("Steps")

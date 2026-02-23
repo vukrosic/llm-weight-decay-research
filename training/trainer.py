@@ -22,7 +22,9 @@ from utils.spectral import (
     compute_singular_values,
     compute_subspace_alignment,
     compute_spectral_entropy,
-    compute_orthogonality_error
+    compute_orthogonality_error,
+    compute_effective_rank,
+    compute_full_singular_values
 )
 
 
@@ -53,31 +55,125 @@ class EarlyStopping:
 
 
 def setup_muon_optimizer(model: nn.Module, config: BlueberryConfig):
-    """Setup Muon optimizer with hybrid approach"""
+    """Setup Muon optimizer with hybrid approach or pure AdamW"""
     muon_params = []
     adamw_params = []
 
+    opt_type = getattr(config, 'optimizer_type', 'muon')
+
     for name, param in model.named_parameters():
-        if (param.ndim == 2 and 
-            'token_embedding' not in name and 
-            'norm' not in name and 
-            param.requires_grad):
-            muon_params.append(param)
+        if not param.requires_grad:
+            continue
+            
+        if opt_type == 'muon':
+            if (param.ndim == 2 and 
+                'token_embedding' not in name and 
+                'norm' not in name):
+                muon_params.append(param)
+            else:
+                adamw_params.append(param)
         else:
             adamw_params.append(param)
 
-    print(f"  Muon parameters: {sum(p.numel() for p in muon_params):,}")
-    print(f"  AdamW parameters: {sum(p.numel() for p in adamw_params):,}")
+    optimizers = []
+    if muon_params:
+        print(f"  Muon parameters: {sum(p.numel() for p in muon_params):,}")
+        muon_optimizer = Muon(muon_params, lr=config.muon_lr, momentum=config.muon_momentum)
+        optimizers.append(muon_optimizer)
+        
+    if adamw_params:
+        print(f"  AdamW parameters: {sum(p.numel() for p in adamw_params):,}")
+        adamw_optimizer = torch.optim.AdamW(
+            adamw_params,
+            lr=config.adamw_lr,
+            weight_decay=config.weight_decay,
+            fused=torch.cuda.is_available()
+        )
+        optimizers.append(adamw_optimizer)
 
-    muon_optimizer = Muon(muon_params, lr=config.muon_lr, momentum=config.muon_momentum)
-    adamw_optimizer = torch.optim.AdamW(
-        adamw_params,
-        lr=config.adamw_lr,
-        weight_decay=config.weight_decay,
-        fused=torch.cuda.is_available()
-    )
+    return optimizers
 
-    return [muon_optimizer, adamw_optimizer]
+
+def log_detailed_metrics(model, optimizers, step, tokens_seen, metrics_history):
+    """Logs detailed metrics per layer and projection every 500 steps."""
+    device = next(model.parameters()).device
+    model_to_log = model.module if hasattr(model, 'module') else model # Handle DDP/Compile
+    
+    if 'layer_logs' not in metrics_history:
+        metrics_history['layer_logs'] = []
+        
+    log_entry = {
+        'step': step,
+        'tokens': tokens_seen,
+        'layers': []
+    }
+    
+    with torch.no_grad():
+        for i, block in enumerate(model_to_log.transformer_blocks):
+            layer_data = {'layer': i, 'projections': {}}
+            
+            # Access the merged qkvo_proj
+            proj_param = block.attention.qkvo_proj
+            q_size = block.attention.q_size
+            kv_size = block.attention.kv_size
+            
+            # Sub-projections
+            projs = {
+                'Q': proj_param[:q_size],
+                'K': proj_param[q_size : q_size + kv_size],
+                'V': proj_param[q_size + kv_size : q_size + 2 * kv_size],
+                'O': proj_param[q_size + 2 * kv_size:]
+            }
+            
+            for name, W in projs.items():
+                stats = {}
+                
+                # Weight norm
+                stats['weight_norm'] = torch.norm(W).item()
+                
+                # Gradient norm (if exists)
+                if proj_param.grad is not None:
+                    # Need to slice the grad too
+                    if name == 'Q': G = proj_param.grad[:q_size]
+                    elif name == 'K': G = proj_param.grad[q_size : q_size + kv_size]
+                    elif name == 'V': G = proj_param.grad[q_size + kv_size : q_size + 2 * kv_size]
+                    else: G = proj_param.grad[q_size + 2 * kv_size:]
+                    stats['grad_norm'] = torch.norm(G).item()
+                else:
+                    stats['grad_norm'] = 0.0
+                    
+                # Update norm and alignment
+                # Find which optimizer has this parameter
+                update_found = False
+                for opt in optimizers:
+                    if proj_param in opt.state and 'last_update' in opt.state[proj_param]:
+                        delta_proj = opt.state[proj_param]['last_update'].to(W.device)
+                        if name == 'Q': dW = delta_proj[:q_size]
+                        elif name == 'K': dW = delta_proj[q_size : q_size + kv_size]
+                        elif name == 'V': dW = delta_proj[q_size + kv_size : q_size + 2 * kv_size]
+                        else: dW = delta_proj[q_size + 2 * kv_size:]
+                        
+                        stats['update_norm'] = torch.norm(dW).item()
+                        stats['alignment'] = compute_subspace_alignment(W, dW, k=5)
+                        update_found = True
+                        break
+                
+                if not update_found:
+                    stats['update_norm'] = 0.0
+                    stats['alignment'] = 0.0
+                
+                # Effective rank
+                stats['effective_rank'] = compute_effective_rank(W)
+                
+                # Full singular value spectrum
+                stats['singular_values'] = compute_full_singular_values(W)
+                
+                layer_data['projections'][name] = stats
+            
+            log_entry['layers'].append(layer_data)
+            
+    metrics_history['layer_logs'].append(log_entry)
+    print(f"   📊 Logged detailed metrics at step {step}")
 
 
 def train_model(
@@ -223,9 +319,36 @@ def train_model(
             # Optimizer step
             if (step + 1) % config.gradient_accumulation_steps == 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
+                
+                # Capture updates for AdamW comparison every 500 optimization steps
+                opt_step = (step + 1) // config.gradient_accumulation_steps
+                is_logging_step = (opt_step > 0 and opt_step % 500 == 0)
+                
                 for optimizer in optimizers:
-                    optimizer.step()
+                    if is_logging_step and not isinstance(optimizer, Muon):
+                         # Snapshot parameters before step for non-Muon optimizers (AdamW)
+                         param_snapshots = {}
+                         for group in optimizer.param_groups:
+                             for p in group['params']:
+                                 if p.grad is not None:
+                                     param_snapshots[p] = p.detach().clone()
+                         
+                         optimizer.step()
+                         
+                         # Compute and store updates
+                         for p, old_p in param_snapshots.items():
+                             optimizer.state[p]['last_update'] = (p - old_p).detach().cpu()
+                    else:
+                         optimizer.step()
+                
+                # Perform detailed logging before zeroing gradients
+                if is_logging_step:
+                    log_detailed_metrics(model, optimizers, opt_step, tokens_seen, metrics_history)
+
+                # Zero gradients after logging
+                for optimizer in optimizers:
                     optimizer.zero_grad()
+                
                 for scheduler in schedulers:
                     scheduler.step()
 
@@ -714,8 +837,9 @@ def train_minimal_llm(
     plot_dir = Path("plots")
     plot_dir.mkdir(parents=True, exist_ok=True)
     
-    # Generate unique filenames
-    base_filename = f"{config.train_tokens}_{timestamp}"
+    # Generate unique filenames including optimizer type
+    opt_name = getattr(config, 'optimizer_type', 'muon')
+    base_filename = f"{opt_name}_{config.train_tokens}_{timestamp}"
     metrics_file = plot_dir / f"metrics_{base_filename}.json"
     plot_file = plot_dir / f"val_loss_{base_filename}.png"
     
@@ -729,6 +853,13 @@ def train_minimal_llm(
         'actual_steps': step,
         'tokens_seen': tokens_seen,
         'train_tokens': config.train_tokens,
+        'experiment_config': {
+            'optimizer_type': opt_name,
+            'muon_lr': config.muon_lr,
+            'adamw_lr': config.adamw_lr,
+            'batch_size': config.batch_size,
+            'gradient_accumulation_steps': config.gradient_accumulation_steps
+        },
         'history': metrics_history,
     }
     with open(metrics_file, 'w') as f:
@@ -759,7 +890,7 @@ def train_minimal_llm(
         plot_loss(
             str(metrics_file), 
             str(plot_file), 
-            title=f"Validation Loss - {config.train_tokens:,} Tokens",
+            title=f"{opt_name.upper()} - Validation Loss - {config.train_tokens:,} Tokens",
             baseline_file=baseline_file
         )
         print(f"   📈 Plot saved to {plot_file}")

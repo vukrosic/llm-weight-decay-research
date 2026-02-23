@@ -35,6 +35,7 @@ class BlueberryConfig:
     adamw_lr: float = 0.006
     warmup_ratio: float = 0.0
     schedule_type: str = "constant"
+    optimizer_type: str = "muon" # "muon" or "adamw"
 
     # Evaluation
     eval_every: Optional[int] = None

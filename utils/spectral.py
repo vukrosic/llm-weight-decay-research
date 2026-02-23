@@ -125,3 +125,12 @@ def compute_effective_rank(tensor):
         # Shannon entropy
         ent = -torch.sum(p * torch.log(p + 1e-10))
         return torch.exp(ent).item()
+
+def compute_full_singular_values(tensor):
+    """Returns all singular values (computed on CPU)."""
+    with torch.no_grad():
+        if tensor.ndim < 2:
+            return [0.0]
+        t = tensor.view(-1, tensor.size(-1)).detach().cpu().float()
+        s = torch.linalg.svdvals(t)
+        return s.tolist()
