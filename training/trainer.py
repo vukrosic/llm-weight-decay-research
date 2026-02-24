@@ -174,7 +174,18 @@ def log_detailed_metrics(model, optimizers, step, tokens_seen, metrics_history, 
                         break
                 
                 # Full singular value spectrum
-                sigma = compute_full_singular_values(W)
+                sigma_full = compute_full_singular_values(W)
+                
+                # Subsample singular values to drastically reduce jsonl file size (50 values total)
+                if len(sigma_full) > 50:
+                    top_10 = sigma_full[:10]
+                    bottom_10 = sigma_full[-10:]
+                    middle = sigma_full[10:-10]
+                    step_size = max(1, len(middle) // 30)
+                    middle_sampled = middle[::step_size][:30]
+                    sigma = top_10 + middle_sampled + bottom_10
+                else:
+                    sigma = sigma_full
                 
                 # Prepare flat record as requested
                 # We also keep effective_rank as it's useful and cheap

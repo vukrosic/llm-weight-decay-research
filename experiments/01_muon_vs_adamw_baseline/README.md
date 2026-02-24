@@ -2,6 +2,9 @@
 
 Investigation of spectral dynamics across layers and projection types comparing Muon and AdamW optimizers.
 
+[**View Latest Results & Analysis**](RESULTS.md)
+
+
 ## Setup
 - **Runs**: 6 runs total
 - **Optimizers**: 2 (Muon, AdamW)

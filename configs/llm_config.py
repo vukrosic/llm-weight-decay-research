@@ -52,7 +52,7 @@ class ModelConfig:
     log_every: int = 100
     save_every: int = 5000
     track_manifold: bool = True
-    detailed_log_every: int = 500
+    detailed_log_every: int = 2500
     log_milestones: Tuple[int, ...] = (100, 500, 1000)
     checkpoint_token_milestone: int = 200_000_000 # Save checkpoint every 200M tokens
     
