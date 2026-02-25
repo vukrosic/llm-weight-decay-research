@@ -1,5 +1,0 @@
-# Muon seed 137
-optimizer_type: "muon"
-seed: 137
-output_dir: "./results/muon_seed_137"
-raw_metrics_dir: "./results/muon_seed_137/raw_metrics"

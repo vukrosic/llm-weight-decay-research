@@ -1,5 +1,0 @@
-# Muon seed 256
-optimizer_type: "muon"
-seed: 256
-output_dir: "./results/muon_seed_256"
-raw_metrics_dir: "./results/muon_seed_256/raw_metrics"

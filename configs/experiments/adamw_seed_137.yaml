@@ -1,5 +1,0 @@
-# AdamW seed 137
-optimizer_type: "adamw"
-seed: 137
-output_dir: "./results/adamw_seed_137"
-raw_metrics_dir: "./results/adamw_seed_137/raw_metrics"

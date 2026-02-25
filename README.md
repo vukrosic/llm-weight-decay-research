@@ -1,22 +1,21 @@
-# Muon Training Dynamics: A Structural Investigation (88M)
+# Muon Weight-Decay Research (88M)
 
-This repository investigates how the **Muon optimizer** shapes transformer representations during training. We focus on the geometric evolution of weight manifolds, specifically looking for anomalies and learning signatures that differentiate manifold-aware optimization from standard AdamW.
+This repository focuses on a single active study: reimplementing Muon decoupled weight decay from the Kimi paper and measuring early training-efficiency gains.
 
-## 🔬 Research Focus: Investigating spectral dynamics across layers and projection types
+## Active experiment
+- `experiments/02_muon_weight_decay_focus`
 
-Our core investigation centers on investigating spectral dynamics across layers and projection types. We track manifold spectral statistics (spectral norm, entropy, subspace alignment) to understand the "hidden geometry" of training.
+Read first:
+- `experiments/02_muon_weight_decay_focus/PLAN.md`
+- `experiments/02_muon_weight_decay_focus/README.md`
 
-## 🚀 Getting Started
-
-### 1. Environment Setup
+## Setup
 ```bash
-git clone https://github.com/vukrosic/muon-llm-research
-cd muon-llm-research
 pip install -r requirements.txt
 ```
 
-### 2. Data Preparation
-For the 2B research suite, you need the full token mix:
+## Run
+Phase 1 screening:
 ```bash
 python3 -c "
 from datasets import load_dataset
@@ -34,30 +33,16 @@ For rigorous investigation, we use explicit YAML configs to ensure reproducibili
 
 **GPU 0 (Muon Seed 42)**: 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python train_llm.py --config_yaml configs/experiments/muon_seed_42.yaml
+bash experiments/02_muon_weight_decay_focus/run_phase1_parallel_4gpu.sh
 ```
 
-**GPU 1 (AdamW Seed 42)**: 
+Phase 2 confirmation:
 ```bash
-CUDA_VISIBLE_DEVICES=1 python train_llm.py --config_yaml configs/experiments/adamw_seed_42.yaml
+WD_A=0.05 WD_B=0.1 bash experiments/02_muon_weight_decay_focus/run_phase2.sh
 ```
 
-Each specific config in `configs/experiments/` defines its own `output_dir` and `seed` and inherits the base architecture from `base_2B.yaml`.
-
-## 📊 Analysis & Visualization
-
-After training, generate research visualizations from the logged manifold metrics:
+## Analyze
 ```bash
-python research_muon/track_manifold.py --plot_only
+python experiments/02_muon_weight_decay_focus/analyze_results.py --phase phase1 --target-loss 3.60
+python experiments/02_muon_weight_decay_focus/analyze_results.py --phase phase2 --target-loss 3.60
 ```
-Plots will be saved to `results/research_plots/`.
-
-## 🛠 Contribution Guidelines
-
-We welcome contributions that improve our understanding of optimizer geometry or training efficiency.
-- **Rigor over speed**: We value stable spectral signatures over minor FLOP reductions.
-- **Reproducibility**: All experiments must be accompanied by a YAML config.
-- **Single Variable**: Only change one hyperparameter or architectural feature at a time to isolate effects.
-
----
-*Training Dynamics Investigation*
