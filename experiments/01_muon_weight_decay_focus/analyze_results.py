@@ -66,7 +66,7 @@ def summarize_run(run_dir, target_loss):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--phase", choices=["phase1", "phase2"], required=True)
-    parser.add_argument("--base-dir", default="experiments/02_muon_weight_decay_focus/runs")
+    parser.add_argument("--base-dir", default="experiments/01_muon_weight_decay_focus/runs")
     parser.add_argument("--target-loss", type=float, required=True)
     args = parser.parse_args()
 

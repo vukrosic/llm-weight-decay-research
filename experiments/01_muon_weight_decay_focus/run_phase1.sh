@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-BASE_DIR="experiments/02_muon_weight_decay_focus"
+BASE_DIR="experiments/01_muon_weight_decay_focus"
 GEN_DIR="${BASE_DIR}/generated_configs/phase1"
 RUNS_DIR="${BASE_DIR}/runs/phase1"
 

@@ -115,8 +115,8 @@ Secondary criteria:
 - Keep data order, tokenizer, batch size, LR schedule, and logging frequency identical across arms.
 
 ## Expected deliverables
-1. `experiments/02_muon_weight_decay_focus/README.md` with setup and commands.
-2. Generated config files for each run under `experiments/02_muon_weight_decay_focus/generated_configs/`.
+1. `experiments/01_muon_weight_decay_focus/README.md` with setup and commands.
+2. Generated config files for each run under `experiments/01_muon_weight_decay_focus/generated_configs/`.
 3. `run_phase1.sh`, `run_phase1_parallel_4gpu.sh`, and `run_phase2.sh`.
 4. `RESULTS.md` with tables + plots:
    - train/val loss vs tokens (early window highlighted)

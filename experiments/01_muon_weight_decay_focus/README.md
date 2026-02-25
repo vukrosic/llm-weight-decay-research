@@ -21,7 +21,7 @@ Runs:
 
 Command:
 ```bash
-bash experiments/02_muon_weight_decay_focus/run_phase1.sh
+bash experiments/01_muon_weight_decay_focus/run_phase1.sh
 ```
 
 ## Phase 2 (confirmation)
@@ -32,7 +32,7 @@ Runs:
 
 Command (example candidates):
 ```bash
-WD_A=0.05 WD_B=0.1 bash experiments/02_muon_weight_decay_focus/run_phase2.sh
+WD_A=0.05 WD_B=0.1 bash experiments/01_muon_weight_decay_focus/run_phase2.sh
 ```
 
 ## Analysis
@@ -40,14 +40,14 @@ Use a fixed target loss threshold from your baseline policy.
 
 Example:
 ```bash
-python experiments/02_muon_weight_decay_focus/analyze_results.py \
+python experiments/01_muon_weight_decay_focus/analyze_results.py \
   --phase phase1 \
   --target-loss 3.60
 ```
 
 For phase2:
 ```bash
-python experiments/02_muon_weight_decay_focus/analyze_results.py \
+python experiments/01_muon_weight_decay_focus/analyze_results.py \
   --phase phase2 \
   --target-loss 3.60
 ```

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-BASE_DIR="experiments/02_muon_weight_decay_focus"
+BASE_DIR="experiments/01_muon_weight_decay_focus"
 GEN_DIR="${BASE_DIR}/generated_configs/phase2"
 RUNS_DIR="${BASE_DIR}/runs/phase2"
 
@@ -9,7 +9,7 @@ TRAIN_TOKENS="${TRAIN_TOKENS:-500000000}"
 SEEDS=("42" "137" "256")
 
 # Set from shell env, example:
-# WD_A=0.05 WD_B=0.1 bash experiments/02_muon_weight_decay_focus/run_phase2.sh
+# WD_A=0.05 WD_B=0.1 bash experiments/01_muon_weight_decay_focus/run_phase2.sh
 WD_A="${WD_A:-0.05}"
 WD_B="${WD_B:-0.1}"
 WDS=("0.0" "${WD_A}" "${WD_B}")
