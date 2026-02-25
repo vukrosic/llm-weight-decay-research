@@ -714,6 +714,7 @@ def train_minimal_llm(
             'optimizer_type': opt_name,
             'muon_lr': config.muon_lr,
             'muon_weight_decay': getattr(config, 'muon_weight_decay', 0.0),
+            'residual_scale': getattr(config, 'residual_scale', 1.0),
             'adamw_lr': config.adamw_lr,
             'batch_size': config.batch_size,
             'gradient_accumulation_steps': config.gradient_accumulation_steps

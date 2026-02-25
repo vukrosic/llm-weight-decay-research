@@ -115,12 +115,14 @@ class TransformerBlock(nn.Module):
         d_ff: int,
         max_seq_len: int,
         dropout: float = 0.1,
+        residual_scale: float = 1.0,
         n_kv_heads: int | None = None,
     ):
         super().__init__()
 
         self.attention = MultiHeadAttention(d_model, n_heads, max_seq_len, dropout, n_kv_heads)
         self.feed_forward = SquaredReLUFeedForward(d_model, d_ff, dropout)
+        self.residual_scale = residual_scale
 
         # Normalization layers
         self.norm1 = nn.RMSNorm(d_model)
@@ -130,9 +132,9 @@ class TransformerBlock(nn.Module):
     def forward(self, x):
         # Self-attention
         attn_out = self.attention(self.norm1(x))
-        x = x + self.dropout(attn_out)
+        x = x + self.residual_scale * self.dropout(attn_out)
 
         # Feed-forward
         ff_out = self.feed_forward(self.norm2(x))
-        x = x + self.dropout(ff_out)
+        x = x + self.residual_scale * self.dropout(ff_out)
         return x

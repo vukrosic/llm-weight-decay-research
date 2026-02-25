@@ -107,3 +107,24 @@ Combined single image (all loss plots across completion matrices):
 `wd_longer_certainty`:
 - ![wd_longer_certainty_mean_std](./runs/wd_longer_certainty/mean_std_val_loss.png)
 - ![wd_longer_certainty_delta](./runs/wd_longer_certainty/delta_vs_baseline.png)
+
+## Dense Short Single-Seed WD Search (Positive + Negative)
+
+Goal: quickly test many WD values to see whether any non-marginal gain appears.
+
+Setup:
+- Seed: `42`
+- Tokens/run: `300,000` (very short)
+- `muon_lr=0.024`
+- WD grid (17 points): `[-0.2, -0.1, -0.05, -0.02, -0.01, -0.005, -0.002, -0.001, 0.0, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2]`
+
+Result summary:
+- Best: `wd=-0.05` with `val_loss=7.2885`
+- Baseline: `wd=0.0` with `val_loss=7.2899`
+- Best improvement vs baseline: `-0.0015` (still small/marginal)
+- Worst in sweep: `wd=0.2` with delta `+0.0059` vs baseline
+
+Artifacts:
+- `experiments/01_muon_weight_decay_focus/runs/wd_dense_single_seed/REPORT.md`
+- ![wd_dense_single_seed_val_loss_vs_wd](./runs/wd_dense_single_seed/val_loss_vs_wd.png)
+- ![wd_dense_single_seed_delta](./runs/wd_dense_single_seed/delta_vs_wd0.png)

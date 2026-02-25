@@ -1,0 +1,73 @@
+{
+  "final_metrics": {
+    "val_loss": 7.291804189682007,
+    "val_accuracy": 0.12884159745969712,
+    "val_perplexity": 1468.2172514591718,
+    "train_loss": 7.303765773773193
+  },
+  "setup_time_seconds": 1.3217096328735352,
+  "active_training_time_seconds": 22.798052072525024,
+  "total_wall_time_seconds": 24.11976170539856,
+  "total_time_minutes": 0.40199602842330934,
+  "actual_steps": 19,
+  "tokens_seen": 311296,
+  "train_tokens": 300000,
+  "experiment_config": {
+    "optimizer_type": "muon",
+    "muon_lr": 0.024,
+    "muon_weight_decay": 0.02,
+    "adamw_lr": 0.0005,
+    "batch_size": 8,
+    "gradient_accumulation_steps": 1
+  },
+  "history": {
+    "steps": [
+      0,
+      19
+    ],
+    "val_losses": [
+      10.884679203033448,
+      7.291804189682007
+    ],
+    "val_accuracies": [
+      0.00823400097703957,
+      0.12884159745969712
+    ],
+    "val_perplexities": [
+      53352.66470183977,
+      1468.2172514591718
+    ],
+    "elapsed_times": [
+      0.15498593250910442,
+      0.3799661199251811
+    ],
+    "learning_rates": [
+      0.024,
+      0.024
+    ],
+    "train_loss_steps": [
+      0,
+      5,
+      10,
+      15
+    ],
+    "train_loss_tokens": [
+      16384,
+      98304,
+      180224,
+      262144
+    ],
+    "train_losses": [
+      10.895920753479004,
+      9.320250511169434,
+      8.383323669433594,
+      7.497758388519287
+    ],
+    "train_loss_elapsed_minutes": [
+      0.021708869934082033,
+      0.18148537476857504,
+      0.20632992585500082,
+      0.23134562571843464
+    ]
+  }
+}

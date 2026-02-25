@@ -45,6 +45,7 @@ class ModelConfig:
     
     # Regularization
     weight_decay: float = 0.2
+    residual_scale: float = 1.0
     dropout: float = 0.0
     grad_clip: float = 1.0
     use_amp: bool = True

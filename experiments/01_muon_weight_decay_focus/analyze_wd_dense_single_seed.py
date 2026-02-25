@@ -14,12 +14,14 @@ def parse_wd(name: str) -> float:
 
 def main():
     rows = []
+    curve_rows = []
     for d in sorted([p for p in RUNS_DIR.iterdir() if p.is_dir()]):
         m = d / "metrics.json"
         if not m.exists():
             continue
         data = json.loads(m.read_text())
         fm = data.get("final_metrics", {})
+        h = data.get("history", {})
         rows.append(
             {
                 "run": d.name,
@@ -29,6 +31,16 @@ def main():
                 "val_acc": float(fm.get("val_accuracy")),
                 "steps": int(data.get("actual_steps")),
                 "tokens_seen": int(data.get("tokens_seen")),
+            }
+        )
+        curve_rows.append(
+            {
+                "run": d.name,
+                "wd": parse_wd(d.name),
+                "train_steps": h.get("train_loss_steps", []),
+                "train_losses": h.get("train_losses", []),
+                "val_steps": h.get("steps", []),
+                "val_losses": h.get("val_losses", []),
             }
         )
 
@@ -78,6 +90,33 @@ def main():
     plt.savefig(p2, dpi=220)
     plt.close()
 
+    # Single image with all loss curves for all WD points.
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6), constrained_layout=True)
+    cmap = plt.cm.get_cmap("coolwarm", len(curve_rows))
+    curve_rows_sorted = sorted(curve_rows, key=lambda r: r["wd"])
+    for i, r in enumerate(curve_rows_sorted):
+        color = cmap(i)
+        if r["train_steps"] and r["train_losses"]:
+            axes[0].plot(r["train_steps"], r["train_losses"], color=color, linewidth=1.3, alpha=0.9)
+            axes[0].scatter([r["train_steps"][-1]], [r["train_losses"][-1]], color=color, s=12)
+        if r["val_steps"] and r["val_losses"]:
+            axes[1].plot(r["val_steps"], r["val_losses"], color=color, linewidth=1.6, alpha=0.9, label=f"wd={r['wd']:g}")
+            axes[1].scatter([r["val_steps"][-1]], [r["val_losses"][-1]], color=color, s=14)
+
+    axes[0].set_title("Train Loss Curves (17 WD runs)")
+    axes[1].set_title("Validation Loss Curves (17 WD runs)")
+    axes[0].set_xlabel("Step")
+    axes[1].set_xlabel("Step")
+    axes[0].set_ylabel("Train Loss")
+    axes[1].set_ylabel("Validation Loss")
+    axes[0].grid(alpha=0.25)
+    axes[1].grid(alpha=0.25)
+    axes[1].legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False, fontsize=8)
+    fig.suptitle("Dense Single-Seed WD Sweep: All Loss Curves")
+    p3 = RUNS_DIR / "all_loss_curves_17wd.png"
+    plt.savefig(p3, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
     report = RUNS_DIR / "REPORT.md"
     with report.open("w") as f:
         f.write("# Dense Single-Seed WD Sweep Report\n\n")
@@ -92,13 +131,15 @@ def main():
         f.write(f"Best wd: `{best['wd']}` with val_loss `{best['val_loss']:.4f}`\n")
         if baseline is not None:
             f.write(f"Baseline wd=0 val_loss: `{baseline['val_loss']:.4f}`\n")
-            f.write(f"Best delta vs wd=0: `{best['val_loss'] - baseline['val_loss']:+.4f}`\n")
+        f.write(f"Best delta vs wd=0: `{best['val_loss'] - baseline['val_loss']:+.4f}`\n")
         f.write("\n![Val Loss vs WD](./val_loss_vs_wd.png)\n")
         f.write("\n![Delta vs WD0](./delta_vs_wd0.png)\n")
+        f.write("\n![All Loss Curves](./all_loss_curves_17wd.png)\n")
 
     print(f"Wrote: {report}")
     print(f"Wrote: {p1}")
     print(f"Wrote: {p2}")
+    print(f"Wrote: {p3}")
 
 
 if __name__ == "__main__":
