@@ -1,0 +1,132 @@
+[
+  {
+    "run": "smallwd_001_lr02_adamw02_seed42",
+    "muon_wd": 0.01,
+    "muon_lr": 0.02,
+    "adamw_wd": null,
+    "val_loss": 7.282219009399414,
+    "train_loss": 7.290803909301758,
+    "val_acc": 0.13036089399120665,
+    "tokens": 311296
+  },
+  {
+    "run": "smallwd_001_lr016_adamw02_seed42",
+    "muon_wd": 0.01,
+    "muon_lr": 0.016,
+    "adamw_wd": null,
+    "val_loss": 7.286976895332336,
+    "train_loss": 7.2867584228515625,
+    "val_acc": 0.12846726917440157,
+    "tokens": 311296
+  },
+  {
+    "run": "negwd_001_lr024_adamw02_seed42",
+    "muon_wd": -0.01,
+    "muon_lr": 0.024,
+    "adamw_wd": null,
+    "val_loss": 7.287396078109741,
+    "train_loss": 7.298157691955566,
+    "val_acc": 0.1297270395701026,
+    "tokens": 311296
+  },
+  {
+    "run": "negwd_0005_lr024_adamw02_seed42",
+    "muon_wd": -0.005,
+    "muon_lr": 0.024,
+    "adamw_wd": null,
+    "val_loss": 7.288953700065613,
+    "train_loss": 7.299595355987549,
+    "val_acc": 0.12942598925256474,
+    "tokens": 311296
+  },
+  {
+    "run": "refwd_01_lr024_adamw02_seed42",
+    "muon_wd": 0.1,
+    "muon_lr": 0.024,
+    "adamw_wd": null,
+    "val_loss": 7.289978575706482,
+    "train_loss": 7.300472736358643,
+    "val_acc": 0.12936675622862726,
+    "tokens": 311296
+  },
+  {
+    "run": "baseline_wd0_lr024_adamw02_seed42",
+    "muon_wd": 0.0,
+    "muon_lr": 0.024,
+    "adamw_wd": null,
+    "val_loss": 7.290355796813965,
+    "train_loss": 7.302332878112793,
+    "val_acc": 0.12942659990229605,
+    "tokens": 311296
+  },
+  {
+    "run": "smallwd_0005_lr024_adamw02_seed42",
+    "muon_wd": 0.005,
+    "muon_lr": 0.024,
+    "adamw_wd": null,
+    "val_loss": 7.290537133216858,
+    "train_loss": 7.30258846282959,
+    "val_acc": 0.12920432340009771,
+    "tokens": 311296
+  },
+  {
+    "run": "refwd_005_lr024_adamw02_seed42",
+    "muon_wd": 0.05,
+    "muon_lr": 0.024,
+    "adamw_wd": null,
+    "val_loss": 7.291312808990479,
+    "train_loss": 7.303557872772217,
+    "val_acc": 0.12890754763067905,
+    "tokens": 311296
+  },
+  {
+    "run": "smallwd_0001_lr024_adamw02_seed42",
+    "muon_wd": 0.001,
+    "muon_lr": 0.024,
+    "adamw_wd": null,
+    "val_loss": 7.291469759941101,
+    "train_loss": 7.303536891937256,
+    "val_acc": 0.12881228627259403,
+    "tokens": 311296
+  },
+  {
+    "run": "smallwd_001_lr024_adamw00_seed42",
+    "muon_wd": 0.01,
+    "muon_lr": 0.024,
+    "adamw_wd": null,
+    "val_loss": 7.291560764312744,
+    "train_loss": 7.3034138679504395,
+    "val_acc": 0.12909807034684906,
+    "tokens": 311296
+  },
+  {
+    "run": "smallwd_001_lr024_adamw02_seed42",
+    "muon_wd": 0.01,
+    "muon_lr": 0.024,
+    "adamw_wd": null,
+    "val_loss": 7.291648917198181,
+    "train_loss": 7.304062366485596,
+    "val_acc": 0.12889838788470934,
+    "tokens": 311296
+  },
+  {
+    "run": "negwd_0001_lr024_adamw02_seed42",
+    "muon_wd": -0.001,
+    "muon_lr": 0.024,
+    "adamw_wd": null,
+    "val_loss": 7.292512516975403,
+    "train_loss": 7.304847717285156,
+    "val_acc": 0.12859978016609672,
+    "tokens": 311296
+  },
+  {
+    "run": "smallwd_001_lr028_adamw02_seed42",
+    "muon_wd": 0.01,
+    "muon_lr": 0.028,
+    "adamw_wd": null,
+    "val_loss": 7.296996479034424,
+    "train_loss": 7.305280685424805,
+    "val_acc": 0.12779982901807524,
+    "tokens": 311296
+  }
+]

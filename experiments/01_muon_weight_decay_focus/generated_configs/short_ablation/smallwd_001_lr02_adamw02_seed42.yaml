@@ -1,0 +1,8 @@
+optimizer_type: "muon"
+seed: 42
+train_tokens: 300000
+muon_weight_decay: 0.01
+muon_lr: 0.02
+weight_decay: 0.2
+log_every: 5
+output_dir: "experiments/01_muon_weight_decay_focus/runs/short_ablation/smallwd_001_lr02_adamw02_seed42"
