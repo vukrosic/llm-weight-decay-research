@@ -128,3 +128,85 @@ Artifacts:
 - `experiments/01_muon_weight_decay_focus/runs/wd_dense_single_seed/REPORT.md`
 - ![wd_dense_single_seed_val_loss_vs_wd](./runs/wd_dense_single_seed/val_loss_vs_wd.png)
 - ![wd_dense_single_seed_delta](./runs/wd_dense_single_seed/delta_vs_wd0.png)
+
+## Dense Short Single-Seed Residual-Scale Search
+
+Goal: sweep residual connection multiplier (`residual_scale`) to test if this knob gives larger-than-marginal effects.
+
+Setup:
+- Seed: `42`
+- Tokens/run: `300,000`
+- `muon_lr=0.024`, `muon_weight_decay=0.0`
+- Scale grid (17 points): `[0.70, 0.80, 0.85, 0.90, 0.95, 0.98, 0.99, 1.00, 1.01, 1.02, 1.05, 1.10, 1.15, 1.20, 1.25, 1.30, 1.40]`
+
+Result summary:
+- Best: `residual_scale=0.70` with `val_loss=7.2817`
+- Baseline: `residual_scale=1.00` with `val_loss=7.2914`
+- Best improvement vs baseline: `-0.0097` (larger than the WD-only deltas)
+- Worst in sweep: `residual_scale=1.40` with delta `+0.0133` vs baseline
+
+Artifacts:
+- `experiments/01_muon_weight_decay_focus/runs/residual_scale_dense_single_seed/REPORT.md`
+- ![residual_scale_val_loss_vs_scale](./runs/residual_scale_dense_single_seed/val_loss_vs_residual_scale.png)
+- ![residual_scale_delta](./runs/residual_scale_dense_single_seed/delta_vs_scale1.png)
+- ![residual_scale_all_curves](./runs/residual_scale_dense_single_seed/all_loss_curves_17scales.png)
+
+## Around-Winner Residual-Scale Ablation (Single Seed, No Multi-Seed)
+
+Focused local sweep around the previous winner:
+- Scale grid: `[0.60, 0.64, 0.66, 0.68, 0.69, 0.70, 0.71, 0.72, 0.74, 0.76, 0.80, 0.90, 1.00]`
+- Seed: `42`
+- Tokens/run: `300,000`
+
+Result summary:
+- Best local point: `residual_scale=0.69`, `val_loss=7.2777`
+- Baseline `scale=1.00`: `val_loss=7.2913`
+- Delta vs baseline: `-0.0136`
+
+Artifacts:
+- `experiments/01_muon_weight_decay_focus/runs/residual_scale_winner_ablation/REPORT.md`
+- ![residual_scale_winner_val](./runs/residual_scale_winner_ablation/val_loss_vs_scale.png)
+- ![residual_scale_winner_delta](./runs/residual_scale_winner_ablation/delta_vs_scale1.png)
+- ![residual_scale_winner_all_curves](./runs/residual_scale_winner_ablation/all_loss_curves.png)
+
+## Long Run Head-to-Head (20M Tokens, 2 Experiments)
+
+As requested, trained only two runs for longer budget:
+- Baseline: `residual_scale=1.0`
+- Best candidate: `residual_scale=0.69`
+- Seed: `42`
+- Tokens each: `20,004,864` (target 20M)
+
+Results:
+- `scale=0.69`: `val_loss=4.5363`, `train_loss=4.4171`, `val_acc=0.2751`
+- `scale=1.0`: `val_loss=4.5435`, `train_loss=4.4266`, `val_acc=0.2749`
+- Delta `(0.69 - 1.0)` on val loss: `-0.0072`
+
+Artifacts:
+- `experiments/01_muon_weight_decay_focus/runs/residual_scale_long_compare/REPORT.md`
+- ![residual_scale_20m_compare](./runs/residual_scale_long_compare/loss_compare_20m_tokens.png)
+
+## Muon Kimi-Style Per-Update Idea Search (Single Seed)
+
+Implemented Muon decay placement modes and searched quickly without seed changes:
+- `muon_decay_mode` in `{param, update, both}`
+- short runs (`300k` tokens), seed `42`, residual scale fixed at `1.0`
+
+Phase-1 best (non-marginal):
+- `mode=update`, `wd=-0.2`
+- `val_loss=7.2825` vs baseline (`mode=param`, `wd=0`) `7.2895`
+- Delta: `-0.0070`
+
+Refined local search around update-mode winner:
+- Grid: `wd ∈ {0.0, -0.05, -0.1, -0.15, -0.2, -0.25, -0.3, -0.4}`
+- Best: `update wd=-0.4`, `val_loss=7.2774`
+- Baseline (`update wd=0`): `7.2916`
+- Delta: `-0.0142`
+
+Artifacts:
+- `experiments/01_muon_weight_decay_focus/runs/muon_kimi_idea_search/REPORT.md`
+- ![muon_kimi_ranked](./runs/muon_kimi_idea_search/ranked_val_loss.png)
+- ![muon_kimi_delta](./runs/muon_kimi_idea_search/delta_vs_baseline.png)
+- `experiments/01_muon_weight_decay_focus/runs/muon_kimi_update_local_search/REPORT.md`
+- ![muon_update_local_val](./runs/muon_kimi_update_local_search/val_loss_vs_wd.png)
+- ![muon_update_local_delta](./runs/muon_kimi_update_local_search/delta_vs_wd0.png)

@@ -81,6 +81,7 @@ def setup_muon_optimizer(model: nn.Module, config: ModelConfig):
             lr=config.muon_lr,
             momentum=config.muon_momentum,
             weight_decay=getattr(config, "muon_weight_decay", 0.0),
+            decay_mode=getattr(config, "muon_decay_mode", "param"),
         )
         optimizers.append(muon_optimizer)
         
@@ -714,6 +715,7 @@ def train_minimal_llm(
             'optimizer_type': opt_name,
             'muon_lr': config.muon_lr,
             'muon_weight_decay': getattr(config, 'muon_weight_decay', 0.0),
+            'muon_decay_mode': getattr(config, 'muon_decay_mode', 'param'),
             'residual_scale': getattr(config, 'residual_scale', 1.0),
             'adamw_lr': config.adamw_lr,
             'batch_size': config.batch_size,

@@ -1,0 +1,20 @@
+[
+  {
+    "run": "res0p69_seed42",
+    "residual_scale": 0.69,
+    "train_loss": 4.417080402374268,
+    "val_loss": 4.536304264068604,
+    "val_acc": 0.2750574010747435,
+    "tokens_seen": 20004864,
+    "steps": 1221
+  },
+  {
+    "run": "res1p00_seed42",
+    "residual_scale": 1.0,
+    "train_loss": 4.426638126373291,
+    "val_loss": 4.543534731864929,
+    "val_acc": 0.2749487054225696,
+    "tokens_seen": 20004864,
+    "steps": 1221
+  }
+]

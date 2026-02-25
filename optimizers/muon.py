@@ -43,13 +43,23 @@ def zeropower_polar_express(G:torch.Tensor, steps: int = 5,):
 
 class Muon(torch.optim.Optimizer):
     """Muon - MomentUm Orthogonalized by Polar Express / Newton Schulz"""
-    def __init__(self, params, lr=0.02, momentum=0.95, nesterov=True, ns_steps=5, weight_decay=0.0):
+    def __init__(
+        self,
+        params,
+        lr=0.02,
+        momentum=0.95,
+        nesterov=True,
+        ns_steps=5,
+        weight_decay=0.0,
+        decay_mode="param",
+    ):
         defaults = dict(
             lr=lr,
             momentum=momentum,
             nesterov=nesterov,
             ns_steps=ns_steps,
             weight_decay=weight_decay,
+            decay_mode=decay_mode,
         )
         super().__init__(params, defaults)
 
@@ -74,7 +84,21 @@ class Muon(torch.optim.Optimizer):
                 # Apply update
                 g = g.to(p.dtype)
                 muon_update = g.view_as(p) * max(1, p.size(-2) / p.size(-1))**0.5
-                decay_update = group["weight_decay"] * p if group["weight_decay"] > 0 else 0.0
+                wd = group["weight_decay"]
+                mode = group.get("decay_mode", "param")
+                if wd == 0.0 or mode == "none":
+                    decay_update = 0.0
+                elif mode == "param":
+                    # Kimi-style decoupled decay term: lr * wd * W
+                    decay_update = wd * p
+                elif mode == "update":
+                    # Per-update decay: regularize the Muon update direction directly.
+                    decay_update = wd * muon_update
+                elif mode == "both":
+                    # Combined parameter + update regularization.
+                    decay_update = wd * (p + muon_update)
+                else:
+                    raise ValueError(f"Unknown Muon decay_mode: {mode}")
                 update = -group["lr"] * (muon_update + decay_update)
                 p.add_(update)
                 
