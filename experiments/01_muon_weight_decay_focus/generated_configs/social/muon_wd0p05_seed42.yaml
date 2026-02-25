@@ -1,0 +1,6 @@
+optimizer_type: "muon"
+seed: 42
+train_tokens: 32768000
+muon_weight_decay: 0.05
+log_every: 50
+output_dir: "experiments/01_muon_weight_decay_focus/runs/social/muon_wd0p05_seed42"

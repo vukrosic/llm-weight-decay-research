@@ -2,16 +2,18 @@
 set -euo pipefail
 
 BASE_DIR="experiments/01_muon_weight_decay_focus"
-GEN_DIR="${BASE_DIR}/generated_configs/phase1"
-RUNS_DIR="${BASE_DIR}/runs/phase1"
+GEN_DIR="${BASE_DIR}/generated_configs/social"
+RUNS_DIR="${BASE_DIR}/runs/social"
 
-SEED=42
-TRAIN_TOKENS="${TRAIN_TOKENS:-300000000}"
-WDS=("0.0" "0.05" "0.1" "0.2")
+SEED="${SEED:-42}"
+TRAIN_TOKENS="${TRAIN_TOKENS:-100000000}"
+LOG_EVERY="${LOG_EVERY:-50}"
+NUM_WORKERS="${NUM_WORKERS:-0}"
+WDS=("0.0" "0.05" "0.1")
 
 mkdir -p "${GEN_DIR}" "${RUNS_DIR}"
 
-echo "Phase 1: seed=${SEED}, train_tokens=${TRAIN_TOKENS}"
+echo "Social matrix: seed=${SEED}, train_tokens=${TRAIN_TOKENS}"
 for WD in "${WDS[@]}"; do
   WD_TAG="${WD/./p}"
   RUN_NAME="muon_wd${WD_TAG}_seed${SEED}"
@@ -24,15 +26,17 @@ optimizer_type: "muon"
 seed: ${SEED}
 train_tokens: ${TRAIN_TOKENS}
 muon_weight_decay: ${WD}
-weight_decay: 0.2
-log_every: 50
+log_every: ${LOG_EVERY}
 output_dir: "${OUT_DIR}"
 EOF
 
   echo "------------------------------------------------------------"
   echo "Running ${RUN_NAME} (muon_weight_decay=${WD})"
   echo "------------------------------------------------------------"
-  python train_llm.py --config_yaml "${CFG}"
+  python train_llm.py \
+    --config_yaml "${CFG}" \
+    --log_every "${LOG_EVERY}" \
+    --num_workers "${NUM_WORKERS}"
 done
 
-echo "Phase 1 complete."
+echo "All 3 runs complete."

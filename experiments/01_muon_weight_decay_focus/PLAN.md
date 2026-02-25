@@ -50,86 +50,30 @@ This plan is directly derived from the paper, with explicit mapping:
 3. Pass `muon_weight_decay` from trainer setup into Muon optimizer.
 4. Log this field into run config/metrics metadata.
 
-## Reimplementation experiment matrix (Muon only)
-Phase 1 (cheap screening, early signal):
-- Seed: 42 only.
-- `muon_weight_decay in {0.0, 0.05, 0.1, 0.2}`.
-- `train_tokens=300_000_000` (or 500M if affordable).
-- Total: 4 runs.
+## Minimum Viable Experiment Matrix (for Social Media)
+To achieve the clearest signal for a social media post with the lowest compute budget, we run a simple 3-way comparison over a short token horizon (e.g., 500M tokens):
+- **Run 1**: `muon_weight_decay = 0.0` (Vanilla Muon Baseline)
+- **Run 2**: `muon_weight_decay = 0.05` (Mild decay)
+- **Run 3**: `muon_weight_decay = 0.1` (Kimi's recommended default)
+- **Seed**: 42 for all runs.
+- **Budget**: 100_000_000 tokens per run.
+- **Total**: 3 independent runs.
 
-Optional Phase 1b (only if needed):
-- If both `0.05` and `0.1` outperform `0.0` in Phase 1, add one tie-break run at `wd=0.075` (seed 42).
-
-Phase 2 (confirmation):
-- Keep top 2 settings from Phase 1 + always include `wd=0.0`.
-- Seeds: 42, 137, 256.
-- `train_tokens=500_000_000`.
-- Total: 9 runs max (often 6 if top2 includes `wd=0`).
-
-## Small novel extension on top (still same question)
-Dose-response curve of Muon decay at early stage:
-- Quantify where decay starts helping/hurting efficiency (`wd=0.0/0.05/0.1/0.2`).
-
-## Budget and schedule
-Two-stage plan emphasizing early-emerging results:
-- Stage A: very short Muon-only sweep for signal detection.
-- Stage B: multi-seed confirmation at moderate token budget.
-
-Optional Stage C (only if Phase 2 is positive):
-- Long-run check (`1_700_000_000` tokens) for late-stage behavior.
-- Trigger rule (pre-registered): run Stage C only if best non-zero `wd` improves mean Phase 2 `tokens_to_target_loss` by >=5% vs `wd=0.0` and has no instability flags.
+## Tracking and Plotting (for Social Media)
+To effectively demonstrate the value of Muon weight decay to the community, we will track and plot two key metrics:
+1. **Validation Loss vs. Tokens/Steps**: A standard learning curve plot to show if adding weight decay maintains or accelerates loss reduction compared to the baseline. 
+2. **Weight Norm Trajectory (Max/Median across layers)**: A plot showing `weight_norm` vs. `training_steps`. This is the visual "hook" — practically demonstrating the Kimi paper's claim that without decay (Run 1), weights grow unbounded, whereas with decay (Runs 2 & 3), weight norms plateau and stabilize appropriately.
 
 ## Measurements to collect
 Use existing outputs:
-- `metrics.json`: train/val curves and final metrics.
-- `metrics/manifold_stats.jsonl`: `weight_norm`, `grad_norm`, `effective_rank`, `update_alignment`.
-
-Primary efficiency metrics (early):
-- `tokens_to_target_loss`: tokens needed to reach fixed loss threshold (pick one threshold from warmup run).
-- `minutes_to_target_loss`: wall-clock minutes to same threshold (runtime fairness).
-- `AUC_train_loss_early`: area under train-loss curve up to fixed token budget (secondary).
-- `delta_val_loss_at_budget`: validation loss difference at same token budget (secondary).
-
-Secondary stability metrics:
-- late-interval slope of median layer `weight_norm`.
-- max layer `weight_norm` near end of run.
-
-## Decision criteria
-Primary success criterion:
-- Winner is the non-zero `wd` with lowest mean Phase 2 `tokens_to_target_loss` across seeds.
-- Claim success only if improvement vs `wd=0.0` is >=5% and appears in at least 2/3 seeds.
-
-Secondary criteria:
-- `minutes_to_target_loss` does not regress by >5%.
-- No instability signs (loss spikes/divergence/checkpoint NaNs).
-- Same or lower weight-growth trend than `wd=0.0`.
-
-## Run abort criteria (compute protection)
-- Abort run if train loss is NaN/Inf at any step.
-- Abort run if loss increases by >25% from its rolling 1k-step median for >=500 consecutive steps.
-- Abort run if any logged weight norm exceeds 3x the median of first 10% of steps.
-- Mark aborted runs as unstable and exclude from winner selection.
+- `metrics.json`: For `train_loss` and `val_loss`.
+- `metrics/manifold_stats.jsonl`: For `weight_norm` logged per layer over time.
 
 ## Confound controls
-- Keep non-Muon parameter-group behavior fixed across all arms (same AdamW settings for embeddings/norm/bias groups).
+- Keep non-Muon parameter-group behavior fixed across all arms.
 - Keep data order, tokenizer, batch size, LR schedule, and logging frequency identical across arms.
 
 ## Expected deliverables
-1. `experiments/01_muon_weight_decay_focus/README.md` with setup and commands.
-2. Generated config files for each run under `experiments/01_muon_weight_decay_focus/generated_configs/`.
-3. `run_phase1.sh`, `run_phase1_parallel_4gpu.sh`, and `run_phase2.sh`.
-4. `RESULTS.md` with tables + plots:
-   - train/val loss vs tokens (early window highlighted)
-   - tokens-to-threshold bar chart
-   - minutes-to-threshold bar chart
-   - dose-response chart for `muon_weight_decay`
-   - weight-norm trend comparison (secondary).
-   - reproducibility block: git commit hash, config checksum, seed table.
-
-## Risks and controls
-- Risk: early signal is noisy.
-  - Control: fixed token-budget metrics + Phase 2 multi-seed confirmation.
-- Risk: implementation bug in Muon decay path.
-  - Control: unit sanity check: one-step update on toy matrix vs analytic decoupled formula.
-- Risk: improvements only appear very late.
-  - Control: run Optional Stage C only after early positive evidence.
+1. A reproducible shell script `run_experiments.sh` to execute the 3 runs.
+2. A single Python plotting script `plot_results.py` that generates the two web-ready images: `val_loss_comparison.png` and `weight_norm_trajectory.png`.
+3. A short `RESULTS.md` containing the social media draft text summarizing the findings (e.g., "Vanilla Muon's weights explode. Adding weight decay fixes it and improves loss...").

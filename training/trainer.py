@@ -10,21 +10,12 @@ from torch.utils.data import DataLoader
 from torch.amp import autocast
 from tqdm import tqdm
 from typing import List, Optional, Callable, Dict, Any
-from collections import defaultdict
 from configs.llm_config import ModelConfig
 from models.llm import MinimalLLM
 from optimizers.muon import Muon
 from training.evaluation import evaluate_model
 from utils.helpers import set_seed, format_time
-from utils.spectral import (
-    compute_spectral_stats, 
-    compute_singular_values,
-    compute_subspace_alignment,
-    compute_spectral_entropy,
-    compute_orthogonality_error,
-    compute_effective_rank,
-    compute_full_singular_values
-)
+
 
 
 class EarlyStopping:
@@ -112,134 +103,6 @@ def setup_muon_optimizer(model: nn.Module, config: ModelConfig):
     return optimizers
 
 
-def log_detailed_metrics(model, optimizers, step, tokens_seen, metrics_history, running_max_stats=None, raw_metrics_dir=None):
-    """Logs detailed metrics per layer and projection every N steps."""
-    device = next(model.parameters()).device
-    model_to_log = model.module if hasattr(model, 'module') else model # Handle DDP/Compile
-    
-    jsonl_manifold = []
-
-    with torch.no_grad():
-        for i, block in enumerate(model_to_log.transformer_blocks):
-            # Access the merged qkvo_proj
-            proj_param = block.attention.qkvo_proj
-            q_size = block.attention.q_size
-            kv_size = block.attention.kv_size
-            
-            # Projections to track
-            projs = {
-                'q': proj_param[:q_size],
-                'k': proj_param[q_size : q_size + kv_size],
-                'v': proj_param[q_size + kv_size : q_size + 2 * kv_size],
-                'o': proj_param[q_size + 2 * kv_size:],
-                'up': block.feed_forward.up_proj.weight,
-                'down': block.feed_forward.down_proj.weight
-            }
-            
-            for name, W in projs.items():
-                stats = {}
-                
-                # Weight norm
-                stats['weight_norm'] = torch.norm(W).item()
-                
-                # Gradient norm (if exists)
-                if name in ['q', 'k', 'v', 'o']:
-                    param_grad = proj_param.grad
-                    if param_grad is not None:
-                        if name == 'q': G = param_grad[:q_size]
-                        elif name == 'k': G = param_grad[q_size : q_size + kv_size]
-                        elif name == 'v': G = param_grad[q_size + kv_size : q_size + 2 * kv_size]
-                        else: G = param_grad[q_size + 2 * kv_size:]
-                        stats['grad_norm'] = torch.norm(G).item()
-                    else:
-                        stats['grad_norm'] = 0.0
-                else:
-                    W_param = block.feed_forward.up_proj.weight if name == 'up' else block.feed_forward.down_proj.weight
-                    stats['grad_norm'] = torch.norm(W_param.grad).item() if W_param.grad is not None else 0.0
-                    
-                # Update norm and alignment
-                left_alignment = 0.0
-                right_alignment = 0.0
-                update_found = False
-                target_param = proj_param if name in ['q', 'k', 'v', 'o'] else (block.feed_forward.up_proj.weight if name == 'up' else block.feed_forward.down_proj.weight)
-                
-                for opt in optimizers:
-                    if target_param in opt.state and 'last_update' in opt.state[target_param]:
-                        delta_full = opt.state[target_param]['last_update'].to(W.device)
-                        if name in ['q', 'k', 'v', 'o']:
-                            if name == 'q': dW = delta_full[:q_size]
-                            elif name == 'k': dW = delta_full[q_size : q_size + kv_size]
-                            elif name == 'v': dW = delta_full[q_size + kv_size : q_size + 2 * kv_size]
-                            else: dW = delta_full[q_size + 2 * kv_size:]
-                        else:
-                            dW = delta_full
-                        
-                        left_alignment, right_alignment = compute_subspace_alignment(W, dW, k=5)
-                        update_found = True
-                        break
-                
-                # Full singular value spectrum
-                sigma_full = compute_full_singular_values(W)
-                
-                # Subsample singular values to drastically reduce jsonl file size (50 values total)
-                if len(sigma_full) > 50:
-                    top_10 = sigma_full[:10]
-                    bottom_10 = sigma_full[-10:]
-                    middle = sigma_full[10:-10]
-                    step_size = max(1, len(middle) // 30)
-                    middle_sampled = middle[::step_size][:30]
-                    sigma = top_10 + middle_sampled + bottom_10
-                else:
-                    sigma = sigma_full
-                
-                # Prepare flat record as requested
-                # We also keep effective_rank as it's useful and cheap
-                final_grad_norm = float(stats['grad_norm'])
-                final_weight_norm = float(stats['weight_norm'])
-                if running_max_stats is not None:
-                    key = f"{i}_{name}"
-                    if key in running_max_stats:
-                        final_grad_norm = max(final_grad_norm, running_max_stats[key]['grad_norm'])
-                        final_weight_norm = max(final_weight_norm, running_max_stats[key]['weight_norm'])
-                        # Reset for next interval
-                        running_max_stats[key] = {'grad_norm': 0.0, 'weight_norm': 0.0}
-
-                record = {
-                    "step": step,
-                    "layer": i,
-                    "proj": name,
-                    "singular_values": sigma,
-                    "update_alignment": float(left_alignment),
-                    "left_alignment": float(left_alignment),
-                    "right_alignment": float(right_alignment),
-                    "grad_norm": final_grad_norm,
-                    "weight_norm": final_weight_norm,
-                    "effective_rank": compute_effective_rank(W)
-                }
-                
-                jsonl_manifold.append(record)
-                
-                # Also keep token info for time-based analysis if needed
-                record['tokens'] = tokens_seen
-            
-    # Save to metrics_history
-    if 'manifold_history' not in metrics_history:
-        metrics_history['manifold_history'] = []
-    
-    # We only append a subset or the summary to metrics_history to keep it manageable if not writing to RAW
-    # But for now, let's satisfy the "Make sure it saves" by writing to JSONL
-    
-    # Write to JSONL if directory provided
-    if raw_metrics_dir:
-        os.makedirs(raw_metrics_dir, exist_ok=True)
-        stats_path = os.path.join(raw_metrics_dir, 'manifold_stats.jsonl')
-        with open(stats_path, 'a') as f:
-            for entry in jsonl_manifold:
-                f.write(json.dumps(entry) + '\n')
-        
-    print(f"   📊 Logged detailed metrics at step {step}")
-
-
 def train_model(
     model: nn.Module,
     config: ModelConfig,
@@ -251,11 +114,9 @@ def train_model(
     output_dir: Optional[str] = None,
     extra_config: Optional[Dict[str, Any]] = None,
     log_every: int = 100,
-    track_manifold: bool = False,
     checkpoint_dir: Optional[str] = "checkpoints",
     checkpoint_every: int = 5000,
     resume_from: Optional[str] = None,
-    raw_metrics_dir: Optional[str] = None,
     checkpoint_token_milestone: int = 200_000_000,
 ) -> Any:
     """
@@ -301,11 +162,6 @@ def train_model(
         'train_loss_elapsed_minutes': [],
     }
     
-    if track_manifold:
-        metrics_history['manifold_history'] = []
-
-    running_max_stats = defaultdict(lambda: {'grad_norm': 0.0, 'weight_norm': 0.0})
-
     # Resume from checkpoint if specified
     start_step = 0
     start_tokens = 0
@@ -397,65 +253,9 @@ def train_model(
             micro_step += 1
             if micro_step == config.gradient_accumulation_steps:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
-                
-                # Capture updates for AdamW comparison and research tracking
-                is_logging_step = (step > 0 and step % config.detailed_log_every == 0)
-                # Capture updates if we are about to log Detailed Metrics OR Manifold Tracking
-                is_manifold_step = track_manifold and (step % log_every == 0)
-                needs_update_capture = is_logging_step or is_manifold_step
-                
-                for optimizer in optimizers:
-                    if needs_update_capture and not isinstance(optimizer, Muon):
-                         # Snapshot parameters before step for non-Muon optimizers (AdamW)
-                         param_snapshots = {p: p.detach().clone() for group in optimizer.param_groups for p in group['params'] if p.grad is not None}
-                         
-                         optimizer.step()
-                         
-                         # Compute and store updates
-                         for p, old_p in param_snapshots.items():
-                             optimizer.state[p]['last_update'] = (p - old_p).detach().cpu()
-                    else:
-                         optimizer.step()
-                
-                # Perform detailed logging before zeroing gradients
-                if is_logging_step:
-                    log_detailed_metrics(model, optimizers, step, tokens_seen, metrics_history, running_max_stats=running_max_stats, raw_metrics_dir=raw_metrics_dir)
 
-                # Track running max stats between logs
-                if track_manifold:
-                    with torch.no_grad():
-                        model_to_log = model.module if hasattr(model, 'module') else model
-                        for i, block in enumerate(model_to_log.transformer_blocks):
-                            proj_param = block.attention.qkvo_proj
-                            q_size = block.attention.q_size
-                            kv_size = block.attention.kv_size
-                            projs = {
-                                'q': proj_param[:q_size],
-                                'k': proj_param[q_size : q_size + kv_size],
-                                'v': proj_param[q_size + kv_size : q_size + 2 * kv_size],
-                                'o': proj_param[q_size + 2 * kv_size:],
-                                'up': block.feed_forward.up_proj.weight,
-                                'down': block.feed_forward.down_proj.weight
-                            }
-                            for name, W in projs.items():
-                                key = f"{i}_{name}"
-                                W_norm = torch.norm(W).item()
-                                if name in ['q', 'k', 'v', 'o']:
-                                    param_grad = proj_param.grad
-                                    if param_grad is not None:
-                                        if name == 'q': G = param_grad[:q_size]
-                                        elif name == 'k': G = param_grad[q_size : q_size + kv_size]
-                                        elif name == 'v': G = param_grad[q_size + kv_size : q_size + 2 * kv_size]
-                                        else: G = param_grad[q_size + 2 * kv_size:]
-                                        G_norm = torch.norm(G).item()
-                                    else:
-                                        G_norm = 0.0
-                                else:
-                                    W_param = block.feed_forward.up_proj.weight if name == 'up' else block.feed_forward.down_proj.weight
-                                    G_norm = torch.norm(W_param.grad).item() if W_param.grad is not None else 0.0
-                                
-                                running_max_stats[key]['grad_norm'] = max(running_max_stats[key]['grad_norm'], G_norm)
-                                running_max_stats[key]['weight_norm'] = max(running_max_stats[key]['weight_norm'], W_norm)
+                for optimizer in optimizers:
+                    optimizer.step()
 
                 # Track current loss (once per update is enough for these scalars)
                 current_loss_val = ce_loss.item()
@@ -746,10 +546,8 @@ def train_minimal_llm(
     val_loader: DataLoader,
     output_dir: Optional[str] = None,
     load_weights_path: Optional[str] = None,
-    track_manifold: bool = False,
     resume: bool = False,
     checkpoint_dir: str = "checkpoints",
-    raw_metrics_dir: Optional[str] = None,
 ):
     print(f"\n🚀 Training dense model")
     setup_start = time.time()
@@ -875,11 +673,9 @@ def train_minimal_llm(
         output_dir=None,
         extra_config=None,
         log_every=getattr(config, 'log_every', 100),
-        track_manifold=track_manifold,
         resume_from=os.path.join(checkpoint_dir, "latest_checkpoint.pt") if resume else None,
         checkpoint_dir=checkpoint_dir,
         checkpoint_every=getattr(config, 'save_every', 2000),
-        raw_metrics_dir=raw_metrics_dir,
         checkpoint_token_milestone=config.checkpoint_token_milestone,
     )
     

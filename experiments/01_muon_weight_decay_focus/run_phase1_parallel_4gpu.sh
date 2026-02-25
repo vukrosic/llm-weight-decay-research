@@ -17,11 +17,10 @@ for i in "${!WDS[@]}"; do
   WD_TAG="${WD/./p}"
   RUN_NAME="muon_wd${WD_TAG}_seed${SEED}"
   OUT_DIR="${RUNS_DIR}/${RUN_NAME}"
-  RAW_DIR="${OUT_DIR}/metrics"
   CFG="${GEN_DIR}/${RUN_NAME}.yaml"
   LOG="${OUT_DIR}/training.log"
 
-  mkdir -p "${OUT_DIR}" "${RAW_DIR}"
+  mkdir -p "${OUT_DIR}"
   cat > "${CFG}" <<EOF
 optimizer_type: "muon"
 seed: ${SEED}
@@ -29,14 +28,12 @@ train_tokens: ${TRAIN_TOKENS}
 muon_weight_decay: ${WD}
 weight_decay: 0.2
 log_every: 50
-detailed_log_every: 250
 output_dir: "${OUT_DIR}"
-raw_metrics_dir: "${RAW_DIR}"
 EOF
 
   echo "Launching ${RUN_NAME} on GPU ${i}"
   CUDA_VISIBLE_DEVICES="${i}" \
-    python train_llm.py --config_yaml "${CFG}" --track_manifold true > "${LOG}" 2>&1 &
+    python train_llm.py --config_yaml "${CFG}" > "${LOG}" 2>&1 &
 done
 
 echo "All runs launched. Waiting..."

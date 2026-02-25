@@ -52,15 +52,12 @@ class ModelConfig:
     # Logging & Checkpoints
     log_every: int = 100
     save_every: int = 5000
-    track_manifold: bool = True
-    detailed_log_every: int = 2500
     log_milestones: Tuple[int, ...] = (100, 500, 1000)
     checkpoint_token_milestone: int = 200_000_000 # Save checkpoint every 200M tokens
     
     # New paths and seed
     seed: int = 42
     output_dir: str = "./checkpoints"
-    raw_metrics_dir: Optional[str] = None
     checkpoint_dir: str = "./checkpoints"
 
     def __post_init__(self):

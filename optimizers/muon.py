@@ -78,5 +78,5 @@ class Muon(torch.optim.Optimizer):
                 update = -group["lr"] * (muon_update + decay_update)
                 p.add_(update)
                 
-                # Store update for research/manifold tracking (consistent with AdamW: p_new - p_old)
+                # Store update for optional optimizer analysis (consistent with AdamW: p_new - p_old)
                 state["last_update"] = update.detach().cpu()

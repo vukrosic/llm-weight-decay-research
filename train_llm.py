@@ -288,11 +288,9 @@ def main():
     parser.add_argument("--log_every", type=int, default=None, help="Logging frequency in steps")
     parser.add_argument("--num_workers", type=int, default=2, help="DataLoader worker processes")
     parser.add_argument("--warmup", type=str, default="true", help="Whether to perform untimed compilation warmup (true/false)")
-    parser.add_argument("--track_manifold", type=str, default="false", help="Whether to track manifold spectral statistics (true/false)")
     parser.add_argument("--resume", action="store_true", help="Resume training from latest_checkpoint.pt in the output directory")
     parser.add_argument("--checkpoint_dir", type=str, default=None, help="Directory to save periodic checkpoints")
     parser.add_argument("--optimizer", type=str, help="Optimizer type (muon or adamw)")
-    parser.add_argument("--raw_metrics_dir", type=str, help="Directory to save JSONL raw metrics")
 
     args = parser.parse_args()
 
@@ -465,10 +463,8 @@ def main():
         val_loader, 
         output_dir=args.output_dir if args.output_dir else config.output_dir, 
         load_weights_path=args.load_checkpoint,
-        track_manifold=(args.track_manifold.lower() == "true") or config.track_manifold,
         resume=args.resume,
         checkpoint_dir=args.checkpoint_dir if args.checkpoint_dir else config.checkpoint_dir,
-        raw_metrics_dir=args.raw_metrics_dir if args.raw_metrics_dir else config.raw_metrics_dir
     )
 
 
