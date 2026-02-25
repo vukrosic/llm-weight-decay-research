@@ -116,8 +116,8 @@ Secondary criteria:
 
 ## Expected deliverables
 1. `experiments/02_muon_weight_decay_focus/README.md` with setup and commands.
-2. Config files for each arm/seed under `experiments/02_muon_weight_decay_focus/configs/`.
-3. `run_all.sh` and optional `run_parallel_*.sh`.
+2. Generated config files for each run under `experiments/02_muon_weight_decay_focus/generated_configs/`.
+3. `run_phase1.sh`, `run_phase1_parallel_4gpu.sh`, and `run_phase2.sh`.
 4. `RESULTS.md` with tables + plots:
    - train/val loss vs tokens (early window highlighted)
    - tokens-to-threshold bar chart

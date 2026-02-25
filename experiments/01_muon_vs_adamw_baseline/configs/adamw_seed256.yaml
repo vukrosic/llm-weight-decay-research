@@ -1,7 +1,0 @@
-optimizer_type: "adamw"
-seed: 256
-train_tokens: 1700000000
-detailed_log_every: 250
-log_every: 50
-output_dir: "experiments/01_muon_vs_adamw_baseline/adamw_seed256"
-raw_metrics_dir: "experiments/01_muon_vs_adamw_baseline/adamw_seed256/metrics"

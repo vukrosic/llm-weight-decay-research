@@ -32,6 +32,7 @@ class ModelConfig:
     # Learning Rate (Aggressive for pre-training)
     muon_lr: float = 0.024
     muon_momentum: float = 0.95
+    muon_weight_decay: float = 0.0
     adamw_lr: float = 0.0005
     warmup_ratio: float = 0.0
     schedule_type: str = "constant"

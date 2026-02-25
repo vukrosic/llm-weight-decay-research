@@ -43,8 +43,14 @@ def zeropower_polar_express(G:torch.Tensor, steps: int = 5,):
 
 class Muon(torch.optim.Optimizer):
     """Muon - MomentUm Orthogonalized by Polar Express / Newton Schulz"""
-    def __init__(self, params, lr=0.02, momentum=0.95, nesterov=True, ns_steps=5):
-        defaults = dict(lr=lr, momentum=momentum, nesterov=nesterov, ns_steps=ns_steps)
+    def __init__(self, params, lr=0.02, momentum=0.95, nesterov=True, ns_steps=5, weight_decay=0.0):
+        defaults = dict(
+            lr=lr,
+            momentum=momentum,
+            nesterov=nesterov,
+            ns_steps=ns_steps,
+            weight_decay=weight_decay,
+        )
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -67,7 +73,9 @@ class Muon(torch.optim.Optimizer):
                 
                 # Apply update
                 g = g.to(p.dtype)
-                update = g.view_as(p) * (-group["lr"] * max(1, p.size(-2) / p.size(-1))**0.5)
+                muon_update = g.view_as(p) * max(1, p.size(-2) / p.size(-1))**0.5
+                decay_update = group["weight_decay"] * p if group["weight_decay"] > 0 else 0.0
+                update = -group["lr"] * (muon_update + decay_update)
                 p.add_(update)
                 
                 # Store update for research/manifold tracking (consistent with AdamW: p_new - p_old)

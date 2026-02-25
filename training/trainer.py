@@ -85,7 +85,12 @@ def setup_muon_optimizer(model: nn.Module, config: ModelConfig):
     optimizers = []
     if muon_params:
         print(f"  Muon parameters: {sum(p.numel() for p in muon_params):,}")
-        muon_optimizer = Muon(muon_params, lr=config.muon_lr, momentum=config.muon_momentum)
+        muon_optimizer = Muon(
+            muon_params,
+            lr=config.muon_lr,
+            momentum=config.muon_momentum,
+            weight_decay=getattr(config, "muon_weight_decay", 0.0),
+        )
         optimizers.append(muon_optimizer)
         
     if decay_params or no_decay_params:
@@ -290,6 +295,10 @@ def train_model(
         'val_perplexities': [],
         'elapsed_times': [],
         'learning_rates': [],
+        'train_loss_steps': [],
+        'train_loss_tokens': [],
+        'train_losses': [],
+        'train_loss_elapsed_minutes': [],
     }
     
     if track_manifold:
@@ -468,6 +477,12 @@ def train_model(
                         
                         perplexity = math.exp(min(current_loss_val, 20))
                         current_lr = schedulers[0].get_last_lr()[0] if schedulers else optimizers[0].param_groups[0]['lr']
+                        elapsed_minutes = (time.time() - train_start_time) / 60
+
+                    metrics_history['train_loss_steps'].append(step)
+                    metrics_history['train_loss_tokens'].append(tokens_seen)
+                    metrics_history['train_losses'].append(current_loss_val)
+                    metrics_history['train_loss_elapsed_minutes'].append(elapsed_minutes)
 
                     # Update progress bar postfix
                     tokens_per_step = config.batch_size * config.max_seq_len * config.gradient_accumulation_steps
@@ -903,6 +918,7 @@ def train_minimal_llm(
         'experiment_config': {
             'optimizer_type': opt_name,
             'muon_lr': config.muon_lr,
+            'muon_weight_decay': getattr(config, 'muon_weight_decay', 0.0),
             'adamw_lr': config.adamw_lr,
             'batch_size': config.batch_size,
             'gradient_accumulation_steps': config.gradient_accumulation_steps
