@@ -1,0 +1,6 @@
+seed: 42
+train_tokens: 100000000
+residual_scale_mode: "learned_layer"
+residual_scale_init: 0.1
+residual_scale: 1.0
+output_dir: "experiments/learned_residual_scale_100m_pair/runs/modelearned_layer_init0p1_fixed1p0_seed42"

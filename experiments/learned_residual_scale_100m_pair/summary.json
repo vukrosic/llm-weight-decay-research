@@ -1,0 +1,30 @@
+[
+  {
+    "run": "modefixed_init1p0_fixed1p0_seed42",
+    "variant": "fixed:1",
+    "mode": "fixed",
+    "init": 1.0,
+    "val_loss": 3.7473718333244324,
+    "train_loss": 3.7727367877960205,
+    "val_acc": 0.3485747435271129,
+    "steps": 6104,
+    "tokens_seen": 100007936,
+    "attn_scale_mean": null,
+    "ff_scale_mean": null,
+    "delta_vs_baseline": 0.0
+  },
+  {
+    "run": "modelearned_branch_init0p1_fixed1p0_seed42",
+    "variant": "learned_branch:init0.1",
+    "mode": "learned_branch",
+    "init": 0.1,
+    "val_loss": 3.7991949200630186,
+    "train_loss": 3.8287084102630615,
+    "val_acc": 0.3474248900830484,
+    "steps": 6104,
+    "tokens_seen": 100007936,
+    "attn_scale_mean": 0.09573433615944603,
+    "ff_scale_mean": 0.010559255426580256,
+    "delta_vs_baseline": 0.051823086738586266
+  }
+]
