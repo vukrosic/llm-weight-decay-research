@@ -1,9 +1,0 @@
-optimizer_type: "muon"
-seed: 42
-train_tokens: 300000
-muon_lr: 0.024
-muon_weight_decay: 0.0
-residual_scale: 1.00
-weight_decay: 0.2
-log_every: 5
-output_dir: "experiments/01_muon_weight_decay_focus/runs/residual_scale_dense_single_seed/res1p00_seed42"

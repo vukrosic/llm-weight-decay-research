@@ -1,8 +1,0 @@
-optimizer_type: "muon"
-seed: 1024
-train_tokens: 2400000
-muon_lr: 0.024
-muon_weight_decay: 0.0
-weight_decay: 0.2
-log_every: 20
-output_dir: "experiments/01_muon_weight_decay_focus/runs/wd_extended_certainty/wd0p0_seed1024"

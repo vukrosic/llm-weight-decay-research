@@ -47,6 +47,8 @@ class ModelConfig:
     # Regularization
     weight_decay: float = 0.2
     residual_scale: float = 1.0
+    residual_scale_mode: str = "fixed"  # one of: fixed, learned_layer, learned_branch
+    residual_scale_init: float = 1.0
     dropout: float = 0.0
     grad_clip: float = 1.0
     use_amp: bool = True

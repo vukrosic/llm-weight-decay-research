@@ -116,13 +116,27 @@ class TransformerBlock(nn.Module):
         max_seq_len: int,
         dropout: float = 0.1,
         residual_scale: float = 1.0,
+        residual_scale_mode: str = "fixed",
+        residual_scale_init: float = 1.0,
         n_kv_heads: int | None = None,
     ):
         super().__init__()
 
         self.attention = MultiHeadAttention(d_model, n_heads, max_seq_len, dropout, n_kv_heads)
         self.feed_forward = SquaredReLUFeedForward(d_model, d_ff, dropout)
+        self.residual_scale_mode = residual_scale_mode
         self.residual_scale = residual_scale
+        self.residual_scale_init = residual_scale_init
+        if residual_scale_mode == "learned_layer":
+            self.layer_scale = nn.Parameter(torch.tensor(float(residual_scale_init)))
+        elif residual_scale_mode == "learned_branch":
+            self.attn_scale = nn.Parameter(torch.tensor(float(residual_scale_init)))
+            self.ff_scale = nn.Parameter(torch.tensor(float(residual_scale_init)))
+        elif residual_scale_mode != "fixed":
+            raise ValueError(
+                f"Unknown residual_scale_mode: {residual_scale_mode}. "
+                "Expected one of: fixed, learned_layer, learned_branch"
+            )
 
         # Normalization layers
         self.norm1 = nn.RMSNorm(d_model)
@@ -132,9 +146,19 @@ class TransformerBlock(nn.Module):
     def forward(self, x):
         # Self-attention
         attn_out = self.attention(self.norm1(x))
-        x = x + self.residual_scale * self.dropout(attn_out)
+        if self.residual_scale_mode == "fixed":
+            x = x + self.residual_scale * self.dropout(attn_out)
+        elif self.residual_scale_mode == "learned_layer":
+            x = x + self.layer_scale * self.dropout(attn_out)
+        else:
+            x = x + self.attn_scale * self.dropout(attn_out)
 
         # Feed-forward
         ff_out = self.feed_forward(self.norm2(x))
-        x = x + self.residual_scale * self.dropout(ff_out)
+        if self.residual_scale_mode == "fixed":
+            x = x + self.residual_scale * self.dropout(ff_out)
+        elif self.residual_scale_mode == "learned_layer":
+            x = x + self.layer_scale * self.dropout(ff_out)
+        else:
+            x = x + self.ff_scale * self.dropout(ff_out)
         return x

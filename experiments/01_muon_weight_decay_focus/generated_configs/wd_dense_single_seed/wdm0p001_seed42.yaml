@@ -1,8 +1,0 @@
-optimizer_type: "muon"
-seed: 42
-train_tokens: 300000
-muon_lr: 0.024
-muon_weight_decay: -0.001
-weight_decay: 0.2
-log_every: 5
-output_dir: "experiments/01_muon_weight_decay_focus/runs/wd_dense_single_seed/wdm0p001_seed42"

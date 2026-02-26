@@ -700,6 +700,32 @@ def train_minimal_llm(
     base_filename = f"{opt_name}_{config.train_tokens}_{timestamp}"
     metrics_file = plot_dir / f"metrics_{base_filename}.json"
     plot_file = plot_dir / f"val_loss_{base_filename}.png"
+
+    learned_scale_summary = {}
+    blocks = list(getattr(results["model"], "transformer_blocks", []))
+    if blocks:
+        attn_vals = []
+        ff_vals = []
+        layer_vals = []
+        for block in blocks:
+            if hasattr(block, "attn_scale"):
+                attn_vals.append(float(block.attn_scale.detach().float().cpu().item()))
+            if hasattr(block, "ff_scale"):
+                ff_vals.append(float(block.ff_scale.detach().float().cpu().item()))
+            if hasattr(block, "layer_scale"):
+                layer_vals.append(float(block.layer_scale.detach().float().cpu().item()))
+        if attn_vals:
+            learned_scale_summary["attn_scale_mean"] = sum(attn_vals) / len(attn_vals)
+            learned_scale_summary["attn_scale_min"] = min(attn_vals)
+            learned_scale_summary["attn_scale_max"] = max(attn_vals)
+        if ff_vals:
+            learned_scale_summary["ff_scale_mean"] = sum(ff_vals) / len(ff_vals)
+            learned_scale_summary["ff_scale_min"] = min(ff_vals)
+            learned_scale_summary["ff_scale_max"] = max(ff_vals)
+        if layer_vals:
+            learned_scale_summary["layer_scale_mean"] = sum(layer_vals) / len(layer_vals)
+            learned_scale_summary["layer_scale_min"] = min(layer_vals)
+            learned_scale_summary["layer_scale_max"] = max(layer_vals)
     
     # Save comprehensive metrics to plots/
     metrics_data = {
@@ -717,10 +743,13 @@ def train_minimal_llm(
             'muon_weight_decay': getattr(config, 'muon_weight_decay', 0.0),
             'muon_decay_mode': getattr(config, 'muon_decay_mode', 'param'),
             'residual_scale': getattr(config, 'residual_scale', 1.0),
+            'residual_scale_mode': getattr(config, 'residual_scale_mode', 'fixed'),
+            'residual_scale_init': getattr(config, 'residual_scale_init', 1.0),
             'adamw_lr': config.adamw_lr,
             'batch_size': config.batch_size,
             'gradient_accumulation_steps': config.gradient_accumulation_steps
         },
+        'learned_scale_summary': learned_scale_summary,
         'history': metrics_history,
     }
     with open(metrics_file, 'w') as f:
