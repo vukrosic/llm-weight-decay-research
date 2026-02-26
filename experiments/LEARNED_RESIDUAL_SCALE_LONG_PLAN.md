@@ -1,23 +1,46 @@
-# Learned Residual Scale: Longer-Training Plan
+# Learned Residual Scale: Long-Run Plan
 
 ## Goal
-Validate whether the short-run win from learned residual scaling remains (or improves) at a meaningfully longer training horizon. [uncleal goal]
+Test one thing only: at `35M` tokens, does learned residual scaling beat fixed residual scaling on final validation loss?
 
-## What we already know (single seed, 2M tokens) [do 20m tokens for each ablation instead, just llm config, do not change batch size or anything else that you already have, just numer of tokens]
-- Best: `learned_layer:init0.1` (`val_loss 6.0433`)
-- Baseline: `fixed:1.0` (`val_loss 6.0872`)
-- Delta: `-0.0439`
+## Scope Rules
+- Use base training setup from `configs/llm_config.py`.
+- Change only:
+  - `train_tokens` -> `35000000`
+  - residual-scale mode/init fields per run
+- Do not change batch size, LR, optimizer type, or other knobs.
+- Do not run any weight-decay sweep in this plan.
 
-## Long-run experiment scope
-- Keep seed fixed: `42` (no seed changes)
-- Keep optimizer setup fixed to current winning Muon config:
-  - `muon_decay_mode=update`
-  - `muon_weight_decay=-0.2` [no delete all weight decay expeiments, purge experiments completely, i just want the base, i will delete it all, make new folder in experimetns for this filel and explerimt]
-- Increase budget from `2M` to `20M` tokens per run
+## Where learned params are added
+- Location: inside each `TransformerBlock`, on residual branches before skip summation:
+  - `x = x + scale * attn_out`
+  - `x = x + scale * ff_out`
+- Note on `scale * x + ...`:
+  - Good idea, but treated as a separate mechanism (skip-path scaling) and excluded from this phase to keep one-variable attribution.
+  - If branch-only learned scaling wins at 35M, run a follow-up with skip-path scaling variants.
+- Modes:
+  1. `fixed`: no learnable scale params (uses constant `residual_scale`).
+  2. `learned_layer`: one learnable scalar per layer, shared by both branches.
+  3. `learned_branch`: two learnable scalars per layer (attention + FFN).
+- Parameter count for current model (`n_layers=22`):
+  - `learned_layer`: `22` extra params
+  - `learned_branch`: `44` extra params
 
-## Run matrix (focused)
+## Run Matrix (35M tokens each, seed 42)
 1. `fixed:1.0` (baseline)
-2. `learned_layer:init0.1` (current winner)
-3. `learned_branch:init0.1` (close second)
-4. `learned_branch:init0.01` (small-init stress test)
-[what does this mean, where do you add learnable params,how many]
+2. `learned_layer:init0.1`
+3. `learned_branch:init0.1`
+4. `learned_branch:init0.01`
+
+## Success Criteria
+1. Primary: at least one learned variant has lower final `val_loss` than `fixed:1.0`.
+2. Secondary: learned scale values move from init without instability.
+3. Secondary: no NaNs/divergence.
+
+## Outputs
+- New experiment folder: `experiments/learned_residual_scale_long/`
+- Artifacts:
+  - `REPORT.md` (ranked table + deltas vs baseline)
+  - `summary.json`
+  - `ranked_val_loss.png`
+  - `delta_vs_baseline.png`

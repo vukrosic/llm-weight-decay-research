@@ -1,0 +1,6 @@
+seed: 42
+train_tokens: 35000000
+residual_scale_mode: "fixed"
+residual_scale_init: 1.0
+residual_scale: 1.0
+output_dir: "experiments/learned_residual_scale_long/runs/modefixed_init1p0_fixed1p0_seed42"
